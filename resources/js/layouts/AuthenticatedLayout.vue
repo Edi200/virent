@@ -2,15 +2,23 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     IdCard,
+    Menu,
     LogOut,
     Palette,
     ShieldCheck,
     User,
 } from '@lucide/vue';
-import { computed } from 'vue';
-import ViRentWordmark from '@/components/ViRentWordmark.vue';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
 import { Toaster } from '@/components/ui/sonner';
+import ViRentWordmark from '@/components/ViRentWordmark.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { logout } from '@/routes';
@@ -22,6 +30,7 @@ import type { NavItem, UserRole } from '@/types';
 
 const page = usePage();
 const { isCurrentOrParentUrl } = useCurrentUrl();
+const isMobileNavOpen = ref(false);
 
 const navItems = computed((): NavItem[] => {
     const items: NavItem[] = [
@@ -59,6 +68,10 @@ const navItems = computed((): NavItem[] => {
 function handleLogout(): void {
     router.flushAll();
 }
+
+function closeMobileNav(): void {
+    isMobileNavOpen.value = false;
+}
 </script>
 
 <template>
@@ -69,7 +82,7 @@ function handleLogout(): void {
             >
                 <ViRentWordmark class="text-2xl sm:text-3xl" />
 
-                <nav class="flex flex-wrap items-center justify-end gap-1">
+                <nav class="hidden flex-wrap items-center justify-end gap-1 md:flex">
                     <Button
                         v-for="item in navItems"
                         :key="toUrl(item.href)"
@@ -109,6 +122,73 @@ function handleLogout(): void {
                         </Link>
                     </Button>
                 </nav>
+
+                <Sheet v-model:open="isMobileNavOpen">
+                    <SheetTrigger as-child>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            class="md:hidden"
+                            aria-label="Open navigation menu"
+                        >
+                            <Menu class="size-5" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" class="w-[280px] sm:w-[320px]">
+                        <SheetHeader>
+                            <SheetTitle>Navigation</SheetTitle>
+                        </SheetHeader>
+                        <nav class="mt-6 flex flex-col gap-2">
+                            <Button
+                                v-for="item in navItems"
+                                :key="`mobile-${toUrl(item.href)}`"
+                                variant="ghost"
+                                :class="[
+                                    'h-10 justify-start',
+                                    {
+                                        'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
+                                            isCurrentOrParentUrl(item.href),
+                                    },
+                                ]"
+                                as-child
+                            >
+                                <Link
+                                    :href="item.href"
+                                    class="inline-flex items-center gap-2"
+                                    @click="closeMobileNav"
+                                >
+                                    <component
+                                        :is="item.icon"
+                                        class="size-4 shrink-0"
+                                    />
+                                    {{ item.title }}
+                                </Link>
+                            </Button>
+
+                            <Button
+                                variant="ghost"
+                                class="h-10 justify-start"
+                                as-child
+                            >
+                                <Link
+                                    :href="logout()"
+                                    as="button"
+                                    class="inline-flex items-center gap-2"
+                                    data-test="logout-button-mobile"
+                                    @click="
+                                        () => {
+                                            handleLogout();
+                                            closeMobileNav();
+                                        }
+                                    "
+                                >
+                                    <LogOut class="size-4 shrink-0" />
+                                    Log out
+                                </Link>
+                            </Button>
+                        </nav>
+                    </SheetContent>
+                </Sheet>
             </div>
         </header>
 

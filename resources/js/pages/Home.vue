@@ -1,16 +1,49 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { LogIn, LogOut, Menu, User, UserPlus } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import RentalProfileModal from '@/components/RentalProfileModal.vue';
-import TextLink from '@/components/TextLink.vue';
-import ViRentWordmark from '@/components/ViRentWordmark.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
+import ViRentWordmark from '@/components/ViRentWordmark.vue';
+import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { toUrl } from '@/lib/utils';
 import { login, logout, register } from '@/routes';
 import { edit as profileEdit } from '@/routes/profile';
+import type { NavItem } from '@/types';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user ?? null);
 const showRentalProfileModal = ref(false);
+const isMobileNavOpen = ref(false);
+const { isCurrentOrParentUrl } = useCurrentUrl();
+
+const authenticatedNavItems: NavItem[] = [
+    {
+        title: 'Account',
+        href: profileEdit(),
+        icon: User,
+    },
+];
+
+const guestNavItems: NavItem[] = [
+    {
+        title: 'Log in',
+        href: login(),
+        icon: LogIn,
+    },
+    {
+        title: 'Sign up',
+        href: register(),
+        icon: UserPlus,
+    },
+];
 
 function handleFlash(event: Event): void {
     const flash = (event as CustomEvent).detail?.flash;
@@ -22,6 +55,10 @@ function handleFlash(event: Event): void {
 
 function handleLogout(): void {
     router.flushAll();
+}
+
+function closeMobileNav(): void {
+    isMobileNavOpen.value = false;
 }
 
 let unsubscribeFlash: (() => void) | undefined;
@@ -45,29 +82,167 @@ onUnmounted(() => {
             >
                 <ViRentWordmark class="text-2xl sm:text-3xl" />
 
-                <nav class="flex items-center gap-3 text-sm">
+                <nav class="hidden items-center gap-1 md:flex">
                     <template v-if="user">
-                        <TextLink :href="profileEdit()">Account</TextLink>
-                        <Link
-                            :href="logout()"
-                            as="button"
-                            class="text-primary underline decoration-primary/30 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-primary"
-                            @click="handleLogout"
+                        <Button
+                            v-for="item in authenticatedNavItems"
+                            :key="toUrl(item.href)"
+                            variant="ghost"
+                            size="sm"
+                            :class="[
+                                'h-9',
+                                {
+                                    'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
+                                        isCurrentOrParentUrl(item.href),
+                                },
+                            ]"
+                            as-child
                         >
-                            Log out
-                        </Link>
+                            <Link
+                                :href="item.href"
+                                class="inline-flex items-center gap-2"
+                            >
+                                <component
+                                    :is="item.icon"
+                                    class="size-4 shrink-0"
+                                />
+                                {{ item.title }}
+                            </Link>
+                        </Button>
+                        <Button variant="ghost" size="sm" class="h-9" as-child>
+                            <Link
+                                :href="logout()"
+                                as="button"
+                                class="inline-flex items-center gap-2"
+                                @click="handleLogout"
+                            >
+                                <LogOut class="size-4 shrink-0" />
+                                Log out
+                            </Link>
+                        </Button>
                     </template>
                     <template v-else>
-                        <TextLink :href="login()">Log in</TextLink>
                         <Button
-                            as-child
+                            v-for="item in guestNavItems"
+                            :key="toUrl(item.href)"
+                            variant="ghost"
                             size="sm"
-                            class="bg-accent text-accent-foreground hover:bg-accent/90"
+                            :class="[
+                                'h-9',
+                                {
+                                    'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
+                                        isCurrentOrParentUrl(item.href),
+                                },
+                            ]"
+                            as-child
                         >
-                            <Link :href="register()">Sign up</Link>
+                            <Link
+                                :href="item.href"
+                                class="inline-flex items-center gap-2"
+                            >
+                                <component
+                                    :is="item.icon"
+                                    class="size-4 shrink-0"
+                                />
+                                {{ item.title }}
+                            </Link>
                         </Button>
                     </template>
                 </nav>
+
+                <Sheet v-model:open="isMobileNavOpen">
+                    <SheetTrigger as-child>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            class="md:hidden"
+                            aria-label="Open navigation menu"
+                        >
+                            <Menu class="size-5" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" class="w-[280px] sm:w-[320px]">
+                        <SheetHeader>
+                            <SheetTitle>Navigation</SheetTitle>
+                        </SheetHeader>
+                        <nav class="mt-6 flex flex-col gap-2">
+                            <template v-if="user">
+                                <Button
+                                    v-for="item in authenticatedNavItems"
+                                    :key="`mobile-${toUrl(item.href)}`"
+                                    variant="ghost"
+                                    :class="[
+                                        'h-10 justify-start',
+                                        {
+                                            'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
+                                                isCurrentOrParentUrl(item.href),
+                                        },
+                                    ]"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="item.href"
+                                        class="inline-flex items-center gap-2"
+                                        @click="closeMobileNav"
+                                    >
+                                        <component
+                                            :is="item.icon"
+                                            class="size-4 shrink-0"
+                                        />
+                                        {{ item.title }}
+                                    </Link>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    class="h-10 justify-start"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="logout()"
+                                        as="button"
+                                        class="inline-flex items-center gap-2"
+                                        @click="
+                                            () => {
+                                                handleLogout();
+                                                closeMobileNav();
+                                            }
+                                        "
+                                    >
+                                        <LogOut class="size-4 shrink-0" />
+                                        Log out
+                                    </Link>
+                                </Button>
+                            </template>
+                            <template v-else>
+                                <Button
+                                    v-for="item in guestNavItems"
+                                    :key="`mobile-${toUrl(item.href)}`"
+                                    variant="ghost"
+                                    :class="[
+                                        'h-10 justify-start',
+                                        {
+                                            'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
+                                                isCurrentOrParentUrl(item.href),
+                                        },
+                                    ]"
+                                    as-child
+                                >
+                                    <Link
+                                        :href="item.href"
+                                        class="inline-flex items-center gap-2"
+                                        @click="closeMobileNav"
+                                    >
+                                        <component
+                                            :is="item.icon"
+                                            class="size-4 shrink-0"
+                                        />
+                                        {{ item.title }}
+                                    </Link>
+                                </Button>
+                            </template>
+                        </nav>
+                    </SheetContent>
+                </Sheet>
             </div>
         </header>
 

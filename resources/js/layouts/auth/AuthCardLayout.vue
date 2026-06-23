@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
-import ViRentWordmark from '@/components/ViRentWordmark.vue';
 import {
     Card,
     CardContent,
@@ -8,6 +7,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import ViRentWordmark from '@/components/ViRentWordmark.vue';
 
 defineProps<{
     title?: string;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-mutating-props -- Inertia's useForm() object is designed to be mutated directly via v-model across component boundaries; this is not a conventional prop-mutation antipattern. */
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
