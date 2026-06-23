@@ -1,0 +1,25 @@
+---
+description: ViRent project overview
+alwaysApply: true
+---
+
+# ViRent
+
+Portfolio-quality mixed-fleet rental platform (Viredsoft brand) — passenger cars, vans, wagons, and work machinery in a single system.
+
+## Stack
+- Laravel 13 + Filament v5 (admin panel)
+- Vue 3 + TypeScript + Inertia 3
+- shadcn-vue + Tailwind v4 (CSS variable theming)
+- Laravel Reverb (real-time booking hold)
+- barryvdh/laravel-dompdf (contract/invoice PDF)
+- stripe/stripe-php (deposit payment)
+- filament/spatie-laravel-media-library-plugin (fleet images)
+- photoswipe (frontend gallery lightbox)
+
+## Architecture principles
+- Categories use dynamic attributes (EAV-style), no hardcoded "type" enum — see database.mdc
+- Pricing logic lives exclusively in `PricingService` — see database.mdc
+- Booking conflicts are prevented via DB lock + buffer time — see database.mdc
+
+Details: see `theming.mdc`, `database.mdc`.

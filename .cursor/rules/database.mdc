@@ -1,0 +1,31 @@
+---
+description: ViRent domain & database conventions
+globs: ["database/migrations/**/*.php", "app/Models/**/*.php", "app/Services/**/*.php", "app/Filament/**/*.php"]
+alwaysApply: false
+---
+
+# ViRent domain conventions
+
+## Category / dynamic attributes
+No hardcoded "type" enum. Instead:
+- categories: id, name, slug, icon, sort_order
+- category_attributes: category_id, key, label, field_type (text/number/select/boolean), options(json), required, sort_order
+- vehicles.specs (json) — populated based on the category's attributes
+
+## Pricing
+All logic lives in `PricingService`, NEVER in a controller or model.
+- vehicle_rates: vehicle_id, rate_type(daily/weekly/monthly), price
+- Tier breakdown: monthly_rate + duration≥28 days → full months + daily remainder; weekly_rate + duration≥7 days → full weeks + daily remainder; otherwise daily×days
+- Extra prices are snapshotted in booking_extras
+
+## Booking conflicts
+- `lockForUpdate()` at confirmation time
+- Per-category `buffer_hours` factored into conflict checks
+- maintenance_blocks also count as "booked" periods
+
+## Real-time hold (Reverb)
+- 10-minute hold during checkout
+- Cancellation/expiry → immediate release + `VehicleAvailabilityChanged` broadcast
+
+## Rental with/without operator
+- vehicles.available_with_operator (bool) + operator_daily_rate (nullable) — relevant only for machinery categories

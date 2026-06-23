@@ -1,0 +1,26 @@
+---
+description: ViRent design tokens
+globs: ["resources/js/**/*.vue", "resources/js/**/*.ts", "resources/css/**/*.css", "tailwind.config.*"]
+alwaysApply: false
+---
+
+# ViRent design tokens
+
+## Colors
+- Primary: #5E244E (plum) — logo, navigation, primary buttons
+- Accent: #E68457 (coral) — CTAs
+- Destructive: #AA1C41 (crimson) — cancellation, errors
+- Muted: #FFE8B4 (cream) — small surfaces only (badges, hover). NEVER as a full background.
+
+## Status badge colors
+pending→amber · confirmed→blue · active→primary · completed→green · cancelled→destructive · maintenance→gray
+
+## Typography
+- Heading + logo: Space Grotesk (self-hosted woff2)
+- Body/UI: Inter (self-hosted woff2)
+- Identifiers (license plate, booking ref, VIN): JetBrains Mono
+
+## Logo
+Wordmark only, lowercase "virent", Space Grotesk, #5E244E. No icon.
+
+NEVER import from Google Fonts CDN — self-hosted woff2 only, `font-display: swap`.
