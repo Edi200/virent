@@ -29,3 +29,10 @@ All logic lives in `PricingService`, NEVER in a controller or model.
 
 ## Rental with/without operator
 - vehicles.available_with_operator (bool) + operator_daily_rate (nullable) — relevant only for machinery categories
+
+## Auth & roles
+Single `users` table for both staff and customers — no separate guard/model.
+- users.role enum: admin, staff, customer
+- User implements canAccessPanel() — only admin/staff pass
+- customers table holds rental-specific profile (license, company info), 1:1 via user_id, customer-role users only
+- bookings.customer_id references customers, not users directly
