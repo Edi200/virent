@@ -28,7 +28,7 @@ defineProps<{
                 <ViRentWordmark />
             </div>
 
-            <Card class="rounded-xl border-t-2 border-t-accent/30">
+            <Card class="rounded-xl border-t-2 border-t-accent/45">
                 <CardHeader class="px-10 pt-8 pb-0 text-center">
                     <CardTitle class="font-heading text-xl">{{ title }}</CardTitle>
                     <CardDescription>

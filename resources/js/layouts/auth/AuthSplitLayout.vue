@@ -15,7 +15,7 @@ defineProps<{
             class="relative hidden h-full flex-col bg-primary p-10 text-primary-foreground lg:flex dark:border-r"
         >
             <div class="relative z-20">
-                <ViRentWordmark class="text-primary-foreground" />
+                <ViRentWordmark />
             </div>
         </div>
         <div class="lg:p-8">

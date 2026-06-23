@@ -11,13 +11,15 @@ const props = defineProps<{
 <template>
     <Link
         href="/"
+        aria-label="ViRent"
         :class="
             cn(
-                'font-heading text-2xl tracking-tight text-primary lowercase',
+                'font-heading text-3xl font-bold tracking-[0.02em] uppercase sm:text-4xl',
                 props.class,
             )
         "
     >
-        virent
+        <span class="text-[#5E244E] dark:text-[#C97FAE]">Vi</span
+        ><span class="text-[#E68457]">Rent</span>
     </Link>
 </template>
