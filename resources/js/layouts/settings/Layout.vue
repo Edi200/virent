@@ -64,7 +64,10 @@ const sidebarNavItems = computed((): NavItem[] => {
                         variant="ghost"
                         :class="[
                             'w-full justify-start',
-                            { 'bg-muted': isCurrentOrParentUrl(item.href) },
+                            {
+                                'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
+                                    isCurrentOrParentUrl(item.href),
+                            },
                         ]"
                         as-child
                     >

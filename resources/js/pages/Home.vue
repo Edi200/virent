@@ -1,17 +1,12 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import RentalProfileModal from '@/components/RentalProfileModal.vue';
 import TextLink from '@/components/TextLink.vue';
 import ViRentWordmark from '@/components/ViRentWordmark.vue';
 import { Button } from '@/components/ui/button';
 import { login, logout, register } from '@/routes';
 import { edit as profileEdit } from '@/routes/profile';
-
-defineOptions({
-    layout: null,
-});
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user ?? null);
@@ -29,23 +24,21 @@ function handleLogout(): void {
     router.flushAll();
 }
 
+let unsubscribeFlash: (() => void) | undefined;
+
 onMounted(() => {
-    router.on('flash', handleFlash);
+    unsubscribeFlash = router.on('flash', handleFlash);
 });
 
 onUnmounted(() => {
-    router.off('flash', handleFlash);
+    unsubscribeFlash?.();
 });
 </script>
 
 <template>
     <Head title="ViRent" />
 
-    <div class="relative min-h-svh bg-background">
-        <div class="absolute top-4 right-4 md:top-6 md:right-6">
-            <AppearanceTabs />
-        </div>
-
+    <div class="min-h-svh bg-background">
         <header class="border-b border-border/60">
             <div
                 class="mx-auto flex h-16 max-w-5xl items-center justify-between px-6"
