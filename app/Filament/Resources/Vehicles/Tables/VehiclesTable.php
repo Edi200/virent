@@ -16,6 +16,7 @@ class VehiclesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->stackedOnMobile()
             ->columns([
                 SpatieMediaLibraryImageColumn::make('fleet-images')
                     ->collection('fleet-images')
