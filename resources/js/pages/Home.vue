@@ -73,7 +73,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <Head title="ViRent" />
+    <Head title="Home" />
 
     <div class="min-h-svh bg-background">
         <header class="border-b border-border/60">

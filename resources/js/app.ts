@@ -9,7 +9,7 @@ configureEcho({
     broadcaster: 'reverb',
 });
 
-const appName = import.meta.env.VITE_APP_NAME || 'ViRent';
+const appName = import.meta.env.VITE_APP_NAME || 'VIRENT';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
