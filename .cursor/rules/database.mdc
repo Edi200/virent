@@ -36,3 +36,9 @@ Single `users` table for both staff and customers — no separate guard/model.
 - User implements canAccessPanel() — only admin/staff pass
 - customers table holds rental-specific profile (license, company info), 1:1 via user_id, customer-role users only
 - bookings.customer_id references customers, not users directly
+
+## Future: staff vs admin permission split
+`staff` role currently has identical Filament panel access to `admin` (no
+distinction in canAccessPanel() or resource policies). Planned future work:
+Filament Policies to restrict staff from sensitive actions (deleting vehicles,
+managing other staff/admin users, Stripe/financial settings). Not implemented yet.

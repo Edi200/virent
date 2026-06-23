@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Customer;
+use App\Models\User;
 use Laravel\Fortify\Features;
 
 beforeEach(function () {
@@ -21,5 +23,13 @@ test('new users can register', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('home', absolute: false));
+    $response->assertSessionHas('inertia.flash_data.showRentalProfileModal', true);
+
+    $user = User::query()->where('email', 'test@example.com')->firstOrFail();
+
+    expect($user->customer)->not->toBeNull()
+        ->and($user->customer->user_id)->toBe($user->id);
+
+    expect(Customer::query()->where('user_id', $user->id)->count())->toBe(1);
 });
