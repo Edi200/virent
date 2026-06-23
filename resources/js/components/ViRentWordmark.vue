@@ -15,7 +15,7 @@ const props = withDefaults(
 );
 
 const wordmarkClass = cn(
-    'font-heading text-3xl font-bold tracking-[0.02em] uppercase sm:text-4xl',
+    'font-wordmark text-3xl font-bold tracking-[0.02em] uppercase sm:text-4xl',
     props.class,
 );
 </script>
@@ -27,11 +27,11 @@ const wordmarkClass = cn(
         aria-label="ViRent"
         :class="wordmarkClass"
     >
-        <span class="text-[#5E244E] dark:text-[#C97FAE]">Vi</span
-        ><span class="text-[#E68457]">Rent</span>
+        <span class="text-[#5E244E] dark:text-[#F3EEF5]">Vi</span
+        ><span class="text-[#E68457] dark:text-[#F3EEF5]">Rent</span>
     </Link>
     <span v-else :class="wordmarkClass" aria-hidden="true">
-        <span class="text-[#5E244E] dark:text-[#C97FAE]">Vi</span
-        ><span class="text-[#E68457]">Rent</span>
+        <span class="text-[#5E244E] dark:text-[#F3EEF5]">Vi</span
+        ><span class="text-[#E68457] dark:text-[#F3EEF5]">Rent</span>
     </span>
 </template>

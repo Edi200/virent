@@ -23,6 +23,14 @@
     font-display: swap;
 }
 
+@font-face {
+    font-family: 'Unbounded';
+    src: url('/fonts/Unbounded.woff2') format('woff2');
+    font-weight: 200 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 @theme inline {
     --font-sans:
         'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
@@ -30,6 +38,11 @@
 
     --font-heading:
         'Space Grotesk', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+
+    --font-wordmark:
+        'Unbounded', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
