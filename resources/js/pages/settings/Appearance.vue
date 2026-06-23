@@ -2,18 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import AppearanceTabs from '@/components/AppearanceTabs.vue';
 import Heading from '@/components/Heading.vue';
-import { edit } from '@/routes/appearance';
-
-defineOptions({
-    layout: {
-        breadcrumbs: [
-            {
-                title: 'Appearance settings',
-                href: edit(),
-            },
-        ],
-    },
-});
+import { Card, CardContent } from '@/components/ui/card';
 </script>
 
 <template>
@@ -21,12 +10,16 @@ defineOptions({
 
     <h1 class="sr-only">Appearance settings</h1>
 
-    <div class="space-y-6">
-        <Heading
-            variant="small"
-            title="Appearance settings"
-            description="Update the appearance settings for your account"
-        />
-        <AppearanceTabs />
+    <div class="max-w-xl">
+        <Card class="rounded-xl border-t-2 border-t-accent/45">
+            <CardContent class="space-y-6 px-6 py-6">
+                <Heading
+                    variant="small"
+                    title="Appearance settings"
+                    description="Update the appearance settings for your account"
+                />
+                <AppearanceTabs />
+            </CardContent>
+        </Card>
     </div>
 </template>

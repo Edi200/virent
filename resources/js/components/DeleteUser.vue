@@ -6,6 +6,7 @@ import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogClose,
@@ -22,26 +23,26 @@ const passwordInput = useTemplateRef('passwordInput');
 </script>
 
 <template>
-    <div class="space-y-6">
-        <Heading
-            variant="small"
-            title="Delete account"
-            description="Delete your account and all of its resources"
-        />
-        <div
-            class="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10"
-        >
-            <div class="relative space-y-0.5 text-red-600 dark:text-red-100">
+    <Card class="rounded-xl border-t-2 border-t-destructive/45">
+        <CardContent class="space-y-6 px-6 py-6">
+            <Heading
+                variant="small"
+                title="Delete account"
+                description="Delete your account and all of its resources"
+            />
+
+            <div class="space-y-1 text-destructive">
                 <p class="font-medium">Warning</p>
-                <p class="text-sm">
+                <p class="text-sm text-muted-foreground">
                     Please proceed with caution, this cannot be undone.
                 </p>
             </div>
+
             <Dialog>
                 <DialogTrigger as-child>
-                    <Button variant="destructive" data-test="delete-user-button"
-                        >Delete account</Button
-                    >
+                    <Button variant="destructive" data-test="delete-user-button">
+                        Delete account
+                    </Button>
                 </DialogTrigger>
                 <DialogContent>
                     <Form
@@ -55,10 +56,9 @@ const passwordInput = useTemplateRef('passwordInput');
                         v-slot="{ errors, processing, reset, clearErrors }"
                     >
                         <DialogHeader class="space-y-3">
-                            <DialogTitle
-                                >Are you sure you want to delete your
-                                account?</DialogTitle
-                            >
+                            <DialogTitle>
+                                Are you sure you want to delete your account?
+                            </DialogTitle>
                             <DialogDescription>
                                 Once your account is deleted, all of its
                                 resources and data will also be permanently
@@ -69,9 +69,9 @@ const passwordInput = useTemplateRef('passwordInput');
                         </DialogHeader>
 
                         <div class="grid gap-2">
-                            <Label for="password" class="sr-only"
-                                >Password</Label
-                            >
+                            <Label for="password" class="sr-only">
+                                Password
+                            </Label>
                             <PasswordInput
                                 id="password"
                                 name="password"
@@ -108,6 +108,6 @@ const passwordInput = useTemplateRef('passwordInput');
                     </Form>
                 </DialogContent>
             </Dialog>
-        </div>
-    </div>
+        </CardContent>
+    </Card>
 </template>
