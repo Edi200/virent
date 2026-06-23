@@ -22,26 +22,32 @@ defineProps<{
 <template>
     <Head title="Email verification" />
 
-    <div
-        v-if="status === 'verification-link-sent'"
-        class="mb-4 text-center text-sm font-medium text-green-600"
-    >
-        A new verification link has been sent to the email address you provided
-        during registration.
+    <div class="flex flex-col gap-6">
+        <div
+            v-if="status === 'verification-link-sent'"
+            class="rounded-md bg-muted px-3 py-2 text-center text-sm text-primary"
+        >
+            A new verification link has been sent to the email address you
+            provided during registration.
+        </div>
+
+        <Form
+            v-bind="send.form()"
+            class="flex flex-col gap-6 text-center"
+            v-slot="{ processing }"
+        >
+            <Button :disabled="processing" class="w-full">
+                <Spinner v-if="processing" />
+                Resend verification email
+            </Button>
+
+            <TextLink
+                :href="logout()"
+                as="button"
+                class="mx-auto block text-sm"
+            >
+                Log out
+            </TextLink>
+        </Form>
     </div>
-
-    <Form
-        v-bind="send.form()"
-        class="space-y-6 text-center"
-        v-slot="{ processing }"
-    >
-        <Button :disabled="processing" variant="secondary">
-            <Spinner v-if="processing" />
-            Resend verification email
-        </Button>
-
-        <TextLink :href="logout()" as="button" class="mx-auto block text-sm">
-            Log out
-        </TextLink>
-    </Form>
 </template>

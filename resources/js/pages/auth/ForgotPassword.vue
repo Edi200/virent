@@ -24,29 +24,29 @@ defineProps<{
 <template>
     <Head title="Forgot password" />
 
-    <div
-        v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
-    >
-        {{ status }}
-    </div>
+    <div class="flex flex-col gap-6">
+        <div
+            v-if="status"
+            class="rounded-md bg-muted px-3 py-2 text-center text-sm text-primary"
+        >
+            {{ status }}
+        </div>
 
-    <div class="space-y-6">
         <Form v-bind="email.form()" v-slot="{ errors, processing }">
-            <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    autocomplete="off"
-                    autofocus
-                    placeholder="email@example.com"
-                />
-                <InputError :message="errors.email" />
-            </div>
+            <div class="flex flex-col gap-6">
+                <div class="grid gap-2">
+                    <Label for="email">Email address</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        name="email"
+                        autocomplete="off"
+                        autofocus
+                        placeholder="email@example.com"
+                    />
+                    <InputError :message="errors.email" />
+                </div>
 
-            <div class="my-6 flex items-center justify-start">
                 <Button
                     class="w-full"
                     :disabled="processing"
@@ -58,8 +58,8 @@ defineProps<{
             </div>
         </Form>
 
-        <div class="space-x-1 text-center text-sm text-muted-foreground">
-            <span>Or, return to</span>
+        <div class="text-center text-sm text-muted-foreground">
+            <span>Or, return to </span>
             <TextLink :href="login()">log in</TextLink>
         </div>
     </div>

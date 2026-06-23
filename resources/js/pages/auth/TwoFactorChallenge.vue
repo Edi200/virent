@@ -2,6 +2,7 @@
 import { Form, Head, setLayoutProps } from '@inertiajs/vue3';
 import { computed, ref, watchEffect } from 'vue';
 import InputError from '@/components/InputError.vue';
+import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -50,18 +51,18 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
 <template>
     <Head title="Two-factor authentication" />
 
-    <div class="space-y-6">
+    <div class="flex flex-col gap-6">
         <template v-if="!showRecoveryInput">
             <Form
                 v-bind="store.form()"
-                class="space-y-4"
+                class="flex flex-col gap-6"
                 reset-on-error
                 @error="code = ''"
                 #default="{ errors, processing, clearErrors }"
             >
                 <input type="hidden" name="code" :value="code" />
                 <div
-                    class="flex flex-col items-center justify-center space-y-3 text-center"
+                    class="flex flex-col items-center justify-center gap-3 text-center"
                 >
                     <div class="flex w-full items-center justify-center">
                         <InputOTP
@@ -82,18 +83,19 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                     </div>
                     <InputError :message="errors.code" />
                 </div>
-                <Button type="submit" class="w-full" :disabled="processing"
-                    >Continue</Button
-                >
+                <Button type="submit" class="w-full" :disabled="processing">
+                    Continue
+                </Button>
                 <div class="text-center text-sm text-muted-foreground">
                     <span>or you can </span>
-                    <button
+                    <TextLink
+                        as="button"
                         type="button"
-                        class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                        @click="() => toggleRecoveryMode(clearErrors)"
+                        href="#"
+                        @click.prevent="toggleRecoveryMode(clearErrors)"
                     >
                         {{ authConfigContent.buttonText }}
-                    </button>
+                    </TextLink>
                 </div>
             </Form>
         </template>
@@ -101,31 +103,34 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
         <template v-else>
             <Form
                 v-bind="store.form()"
-                class="space-y-4"
+                class="flex flex-col gap-6"
                 reset-on-error
                 #default="{ errors, processing, clearErrors }"
             >
-                <Input
-                    name="recovery_code"
-                    type="text"
-                    placeholder="Enter recovery code"
-                    :autofocus="showRecoveryInput"
-                    required
-                />
-                <InputError :message="errors.recovery_code" />
-                <Button type="submit" class="w-full" :disabled="processing"
-                    >Continue</Button
-                >
+                <div class="grid gap-2">
+                    <Input
+                        name="recovery_code"
+                        type="text"
+                        placeholder="Enter recovery code"
+                        :autofocus="showRecoveryInput"
+                        required
+                    />
+                    <InputError :message="errors.recovery_code" />
+                </div>
+                <Button type="submit" class="w-full" :disabled="processing">
+                    Continue
+                </Button>
 
                 <div class="text-center text-sm text-muted-foreground">
                     <span>or you can </span>
-                    <button
+                    <TextLink
+                        as="button"
                         type="button"
-                        class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                        @click="() => toggleRecoveryMode(clearErrors)"
+                        href="#"
+                        @click.prevent="toggleRecoveryMode(clearErrors)"
                     >
                         {{ authConfigContent.buttonText }}
-                    </button>
+                    </TextLink>
                 </div>
             </Form>
         </template>

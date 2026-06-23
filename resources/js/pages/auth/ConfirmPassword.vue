@@ -24,46 +24,44 @@ defineOptions({
 <template>
     <Head title="Confirm password" />
 
-    <PasskeyVerify
-        :routes="{
-            options: confirmOptions(),
-            submit: confirmStore(),
-        }"
-        label="Confirm with passkey"
-        loading-label="Confirming..."
-        separator="Or confirm with password"
-    />
+    <div class="flex flex-col gap-6">
+        <PasskeyVerify
+            :routes="{
+                options: confirmOptions(),
+                submit: confirmStore(),
+            }"
+            label="Confirm with passkey"
+            loading-label="Confirming..."
+            separator="Or confirm with password"
+        />
 
-    <Form
+        <Form
         v-bind="store.form()"
         reset-on-success
         v-slot="{ errors, processing }"
+        class="flex flex-col gap-6"
     >
-        <div class="space-y-6">
-            <div class="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <PasswordInput
-                    id="password"
-                    name="password"
-                    class="mt-1 block w-full"
-                    required
-                    autocomplete="current-password"
-                    autofocus
-                />
+        <div class="grid gap-2">
+            <Label for="password">Password</Label>
+            <PasswordInput
+                id="password"
+                name="password"
+                required
+                autocomplete="current-password"
+                autofocus
+            />
 
-                <InputError :message="errors.password" />
-            </div>
-
-            <div class="flex items-center">
-                <Button
-                    class="w-full"
-                    :disabled="processing"
-                    data-test="confirm-password-button"
-                >
-                    <Spinner v-if="processing" />
-                    Confirm password
-                </Button>
-            </div>
+            <InputError :message="errors.password" />
         </div>
+
+        <Button
+            class="w-full"
+            :disabled="processing"
+            data-test="confirm-password-button"
+        >
+            <Spinner v-if="processing" />
+            Confirm password
+        </Button>
     </Form>
+    </div>
 </template>

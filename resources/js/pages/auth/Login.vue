@@ -29,16 +29,17 @@ defineProps<{
 <template>
     <Head title="Log in" />
 
-    <div
-        v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
-    >
-        {{ status }}
-    </div>
+    <div class="flex flex-col gap-6">
+        <div
+            v-if="status"
+            class="rounded-md bg-muted px-3 py-2 text-center text-sm text-primary"
+        >
+            {{ status }}
+        </div>
 
-    <PasskeyVerify />
+        <PasskeyVerify />
 
-    <Form
+        <Form
         v-bind="store.form()"
         :reset-on-success="['password']"
         v-slot="{ errors, processing }"
@@ -107,4 +108,5 @@ defineProps<{
             <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
         </div>
     </Form>
+    </div>
 </template>
