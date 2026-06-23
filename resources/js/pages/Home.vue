@@ -161,11 +161,20 @@ onUnmounted(() => {
                             <Menu class="size-5" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="right" class="w-[280px] sm:w-[320px]">
-                        <SheetHeader>
-                            <SheetTitle>Navigation</SheetTitle>
+                    <SheetContent
+                        side="right"
+                        class="w-[280px] gap-2 px-4 pt-4 pb-4 sm:w-[320px]"
+                    >
+                        <SheetHeader class="gap-0 p-0 pb-2">
+                            <SheetTitle class="font-normal leading-none">
+                                <span class="sr-only">ViRent</span>
+                                <ViRentWordmark
+                                    :link="false"
+                                    class="text-2xl sm:text-3xl"
+                                />
+                            </SheetTitle>
                         </SheetHeader>
-                        <nav class="mt-6 flex flex-col gap-2">
+                        <nav class="flex flex-col gap-1">
                             <template v-if="user">
                                 <Button
                                     v-for="item in authenticatedNavItems"

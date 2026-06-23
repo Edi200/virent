@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
+    House,
     IdCard,
     Menu,
     LogOut,
@@ -21,7 +22,7 @@ import { Toaster } from '@/components/ui/sonner';
 import ViRentWordmark from '@/components/ViRentWordmark.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
-import { logout } from '@/routes';
+import { home, logout } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editRentalProfile } from '@/routes/rental-profile';
@@ -83,6 +84,16 @@ function closeMobileNav(): void {
                 <ViRentWordmark class="text-2xl sm:text-3xl" />
 
                 <nav class="hidden flex-wrap items-center justify-end gap-1 md:flex">
+                    <Button variant="ghost" size="sm" class="h-9" as-child>
+                        <Link
+                            :href="home()"
+                            class="inline-flex items-center gap-2"
+                        >
+                            <House class="size-4 shrink-0" />
+                            Home
+                        </Link>
+                    </Button>
+
                     <Button
                         v-for="item in navItems"
                         :key="toUrl(item.href)"
@@ -134,11 +145,35 @@ function closeMobileNav(): void {
                             <Menu class="size-5" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="right" class="w-[280px] sm:w-[320px]">
-                        <SheetHeader>
-                            <SheetTitle>Navigation</SheetTitle>
+                    <SheetContent
+                        side="right"
+                        class="w-[280px] gap-2 px-4 pt-4 pb-4 sm:w-[320px]"
+                    >
+                        <SheetHeader class="gap-0 p-0 pb-2">
+                            <SheetTitle class="font-normal leading-none">
+                                <span class="sr-only">ViRent</span>
+                                <ViRentWordmark
+                                    :link="false"
+                                    class="text-2xl sm:text-3xl"
+                                />
+                            </SheetTitle>
                         </SheetHeader>
-                        <nav class="mt-6 flex flex-col gap-2">
+                        <nav class="flex flex-col gap-1">
+                            <Button
+                                variant="ghost"
+                                class="h-10 justify-start"
+                                as-child
+                            >
+                                <Link
+                                    :href="home()"
+                                    class="inline-flex items-center gap-2"
+                                    @click="closeMobileNav"
+                                >
+                                    <House class="size-4 shrink-0" />
+                                    Home
+                                </Link>
+                            </Button>
+
                             <Button
                                 v-for="item in navItems"
                                 :key="`mobile-${toUrl(item.href)}`"
