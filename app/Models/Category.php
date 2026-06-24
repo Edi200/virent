@@ -19,17 +19,28 @@ use Illuminate\Support\Str;
  * @property string $slug
  * @property string|null $icon
  * @property int $sort_order
+ * @property int $buffer_hours
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read VehicleGroup|null $vehicleGroup
  * @property-read Collection<int, CategoryAttribute> $categoryAttributes
  * @property-read Collection<int, Vehicle> $vehicles
  */
-#[Fillable(['group_id', 'name', 'slug', 'icon', 'sort_order'])]
+#[Fillable(['group_id', 'name', 'slug', 'icon', 'sort_order', 'buffer_hours'])]
 class Category extends Model
 {
     /** @use HasFactory<CategoryFactory> */
     use HasFactory;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'buffer_hours' => 'integer',
+        ];
+    }
 
     protected static function booted(): void
     {

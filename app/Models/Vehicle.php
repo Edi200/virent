@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use App\Enums\BookingStatus;
 use App\Enums\CategoryAttributeFieldType;
 use App\Enums\VehicleStatus;
 use App\Services\FleetFilterService;
+use Carbon\CarbonInterface;
 use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -36,6 +40,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Category $category
+ * @property-read Collection<int, Booking> $bookings
+ * @property-read Collection<int, MaintenanceBlock> $maintenanceBlocks
  */
 #[Fillable([
     'category_id',
@@ -172,5 +178,90 @@ class Vehicle extends Model implements HasMedia
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * @return HasMany<Booking, $this>
+     */
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class);
+    }
+
+    /**
+     * @return HasMany<MaintenanceBlock, $this>
+     */
+    public function maintenanceBlocks(): HasMany
+    {
+        return $this->hasMany(MaintenanceBlock::class);
+    }
+
+    /**
+     * Whether the vehicle can be booked for the given date range.
+     *
+     * Date convention: start inclusive, end exclusive (return day).
+     * Buffer overlap extends only the END of each window by category.buffer_hours:
+     *
+     * overlap = !(candidate.end + buffer <= existing.start)
+     *        && !(existing.end + buffer <= candidate.start)
+     */
+    public function isAvailableBetween(Carbon $start, Carbon $end): bool
+    {
+        if ($this->status !== VehicleStatus::Available) {
+            return false;
+        }
+
+        $this->loadMissing('category');
+        $bufferHours = $this->category->buffer_hours;
+
+        $blockingStatuses = [
+            BookingStatus::Pending->value,
+            BookingStatus::Confirmed->value,
+            BookingStatus::Active->value,
+        ];
+
+        $hasBookingConflict = $this->bookings()
+            ->whereIn('status', $blockingStatuses)
+            ->get()
+            ->contains(fn (Booking $booking): bool => self::rangesOverlapWithBuffer(
+                $start,
+                $end,
+                $booking->start_date,
+                $booking->end_date,
+                $bufferHours,
+            ));
+
+        if ($hasBookingConflict) {
+            return false;
+        }
+
+        return ! $this->maintenanceBlocks()
+            ->get()
+            ->contains(fn (MaintenanceBlock $block): bool => self::rangesOverlapWithBuffer(
+                $start,
+                $end,
+                $block->start_date,
+                $block->end_date,
+                $bufferHours,
+            ));
+    }
+
+    public static function rangesOverlapWithBuffer(
+        CarbonInterface $candidateStart,
+        CarbonInterface $candidateEnd,
+        CarbonInterface $existingStart,
+        CarbonInterface $existingEnd,
+        int $bufferHours,
+    ): bool {
+        $candidateStart = Carbon::parse($candidateStart)->startOfDay();
+        $candidateEnd = Carbon::parse($candidateEnd)->startOfDay();
+        $existingStart = Carbon::parse($existingStart)->startOfDay();
+        $existingEnd = Carbon::parse($existingEnd)->startOfDay();
+
+        $candidateEndWithBuffer = $candidateEnd->copy()->addHours($bufferHours);
+        $existingEndWithBuffer = $existingEnd->copy()->addHours($bufferHours);
+
+        return ! ($candidateEndWithBuffer <= $existingStart)
+            && ! ($existingEndWithBuffer <= $candidateStart);
     }
 }
