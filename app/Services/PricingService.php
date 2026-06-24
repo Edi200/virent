@@ -58,7 +58,10 @@ class PricingService
      */
     private function rentalDays(Carbon $start, Carbon $end): int
     {
-        return max(1, $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()));
+        // startOfDay() boundaries guarantee whole days; cast satisfies PHPStan (diffInDays is float|int).
+        $days = (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay());
+
+        return max(1, $days);
     }
 
     /**
