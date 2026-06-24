@@ -6,21 +6,32 @@ alwaysApply: false
 
 # ViRent design tokens
 
-## Colors
-- Primary: #5E244E (plum) — logo, navigation, primary buttons
-- Accent: #E68457 (coral) — CTAs
-- Destructive: #AA1C41 (crimson) — cancellation, errors
-- Muted: #FFE8B4 (cream) — small surfaces only (badges, hover). NEVER as a full background.
+## Colors (HSL channels — see `resources/css/app.css`)
+
+### Light mode
+- Primary: `162 72% 32%` (teal) — logo, navigation, primary buttons
+- Accent: `162 60% 92%` (pale teal) — highlights, card top borders
+- Destructive: `0 72% 51%` — cancellation, errors
+- Background: `0 0% 99%` · Foreground: `222 14% 11%`
+- Muted: `220 14% 96%` — secondary surfaces, placeholders
+
+### Dark mode
+- Primary: `162 55% 45%` (lighter teal)
+- Accent: `162 40% 18%` · Accent foreground: `162 55% 75%`
+- Background: `222 15% 8%` · Foreground: `210 20% 96%`
+
+Always use semantic Tailwind classes (`text-primary`, `bg-accent`, etc.) — never hardcode hex in components.
 
 ## Status badge colors
 pending→amber · confirmed→blue · active→primary · completed→green · cancelled→destructive · maintenance→gray
 
 ## Typography
-- Heading + logo: Space Grotesk (self-hosted woff2)
+- Heading: Space Grotesk (self-hosted woff2)
 - Body/UI: Inter (self-hosted woff2)
+- Wordmark: Unbounded (self-hosted woff2), uppercase, weight 700
 - Identifiers (license plate, booking ref, VIN): JetBrains Mono
 
 ## Logo
-Wordmark only, lowercase "virent", Space Grotesk, #5E244E. No icon.
+Wordmark only — "ViRent", Unbounded uppercase, `text-primary`. No icon.
 
 NEVER import from Google Fonts CDN — self-hosted woff2 only, `font-display: swap`.

@@ -3,6 +3,7 @@ import { configureEcho } from '@laravel/echo-vue';
 import { initializeTheme } from '@/composables/useAppearance';
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
+import PublicLayout from '@/layouts/PublicLayout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
 configureEcho({
@@ -15,9 +16,9 @@ createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
-            case name === 'Welcome':
             case name === 'Home':
-                return null;
+            case name.startsWith('Fleet/'):
+                return PublicLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):
@@ -27,7 +28,7 @@ createInertiaApp({
         }
     },
     progress: {
-        color: '#5E244E',
+        color: '#168A6B',
     },
 });
 

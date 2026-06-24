@@ -129,7 +129,7 @@ function closeMobileNav(): void {
                                 :class="[
                                     'h-10 justify-start',
                                     {
-                                        'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
+                                        'bg-primary/10 text-primary dark:bg-primary/15':
                                             isCurrentOrParentUrl(item.href),
                                     },
                                 ]"
@@ -203,7 +203,7 @@ function closeMobileNav(): void {
                         :class="[
                             'h-10 justify-start',
                             {
-                                'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
+                                'bg-primary/10 text-primary dark:bg-primary/15':
                                     isCurrentOrParentUrl(item.href),
                             },
                         ]"

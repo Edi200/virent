@@ -101,6 +101,7 @@ class FleetSeeder extends Seeder
                 'requires_license_type' => null,
                 'available_with_operator' => false,
                 'operator_daily_rate' => null,
+                'slug' => Vehicle::generateUniqueSlug($vehicle['name']),
                 ...$vehicle,
             ]);
         }

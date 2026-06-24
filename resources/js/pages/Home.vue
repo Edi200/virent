@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { LogIn, LogOut, Menu, User, UserPlus } from '@lucide/vue';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import RentalProfileModal from '@/components/RentalProfileModal.vue';
+import { Head, Link } from '@inertiajs/vue3';
+import { Car, SlidersHorizontal } from '@lucide/vue';
+import { ref } from 'vue';
+import FleetFilterPanel from '@/components/FleetFilterPanel.vue';
+import FleetPagination from '@/components/FleetPagination.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     Sheet,
     SheetContent,
@@ -11,272 +14,293 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
-import ViRentWordmark from '@/components/ViRentWordmark.vue';
-import { useCurrentUrl } from '@/composables/useCurrentUrl';
-import { toUrl } from '@/lib/utils';
-import { login, logout, register } from '@/routes';
-import { edit as profileEdit } from '@/routes/profile';
-import type { NavItem } from '@/types';
+import {
+    useFleetFilters,
+    type FleetFilters,
+    type RangeBounds,
+} from '@/composables/useFleetFilters';
+import { show as fleetShow } from '@/routes/fleet';
 
-const page = usePage();
-const user = computed(() => page.props.auth?.user ?? null);
-const showRentalProfileModal = ref(false);
-const isMobileNavOpen = ref(false);
-const { isCurrentOrParentUrl } = useCurrentUrl();
+type Category = {
+    name: string;
+    slug: string;
+    sort_order: number;
+};
 
-const authenticatedNavItems: NavItem[] = [
-    {
-        title: 'Account',
-        href: profileEdit(),
-        icon: User,
-    },
-];
+type FilterAttribute = {
+    key: string;
+    label: string;
+    field_type: 'text' | 'select' | 'number' | 'boolean';
+    depends_on?: string;
+    options?: string[] | Record<string, string>;
+    bounds?: RangeBounds;
+};
 
-const guestNavItems: NavItem[] = [
-    {
-        title: 'Log in',
-        href: login(),
-        icon: LogIn,
-    },
-    {
-        title: 'Sign up',
-        href: register(),
-        icon: UserPlus,
-    },
-];
+type VehicleListItem = {
+    slug: string;
+    name: string;
+    year: number;
+    daily_rate: string;
+    category: {
+        name: string;
+        slug: string;
+    };
+    thumbnail_url: string | null;
+};
 
-function handleFlash(event: Event): void {
-    const flash = (event as CustomEvent).detail?.flash;
+type PaginationLink = {
+    url: string | null;
+    label: string;
+    active: boolean;
+};
 
-    if (flash?.showRentalProfileModal) {
-        showRentalProfileModal.value = true;
-    }
-}
+type PaginatedVehicles = {
+    data: VehicleListItem[];
+    current_page: number;
+    last_page: number;
+    links: PaginationLink[];
+    prev_page_url: string | null;
+    next_page_url: string | null;
+    total: number;
+    per_page: number;
+};
 
-function handleLogout(): void {
-    router.flushAll();
-}
+const props = defineProps<{
+    categories: Category[];
+    vehicles: PaginatedVehicles;
+    filters: FleetFilters;
+    filterAttributes: FilterAttribute[];
+    priceBounds: RangeBounds;
+}>();
 
-function closeMobileNav(): void {
-    isMobileNavOpen.value = false;
-}
+const isMobileFiltersOpen = ref(false);
 
-let unsubscribeFlash: (() => void) | undefined;
+const {
+    searchQuery,
+    selectCategory,
+    onSearchInput,
+    getPriceRange,
+    onPriceRangeChange,
+    getNumberRange,
+    onNumberRangeChange,
+    setAttr,
+    isBooleanAttrChecked,
+    getSelectAttrValue,
+    isAttributeDisabled,
+    clearAllFilters,
+    hasActiveFilters,
+} = useFleetFilters(() => props.filters);
 
-onMounted(() => {
-    unsubscribeFlash = router.on('flash', handleFlash);
+const eurFormatter = new Intl.NumberFormat('en-EU', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
 });
 
-onUnmounted(() => {
-    unsubscribeFlash?.();
-});
+function formatEur(amount: string | number): string {
+    return eurFormatter.format(Number(amount));
+}
+
+function formatPrice(value: number): string {
+    return formatEur(value);
+}
+
+function handleSelectCategory(slug: string | null): void {
+    selectCategory(slug);
+    isMobileFiltersOpen.value = false;
+}
 </script>
 
 <template>
-    <Head title="Home" />
+    <Head title="Fleet" />
 
-    <div class="min-h-svh bg-background">
-        <header class="border-b border-border/60">
-            <div
-                class="mx-auto flex h-16 max-w-5xl items-center justify-between px-6"
-            >
-                <ViRentWordmark class="text-2xl sm:text-3xl" />
+    <main class="mx-auto max-w-7xl px-6 py-8">
+        <div class="space-y-8">
+            <header class="border-b border-border/60 pb-6">
+                <p class="max-w-2xl text-sm text-muted-foreground md:text-base">
+                    Cars, vans, and work machinery — browse what's available
+                    and find the right vehicle for your job.
+                </p>
+            </header>
 
-                <nav class="hidden items-center gap-1 md:flex">
-                    <template v-if="user">
-                        <Button
-                            v-for="item in authenticatedNavItems"
-                            :key="toUrl(item.href)"
-                            variant="ghost"
-                            size="sm"
-                            :class="[
-                                'h-9',
-                                {
-                                    'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
-                                        isCurrentOrParentUrl(item.href),
-                                },
-                            ]"
-                            as-child
-                        >
-                            <Link
-                                :href="item.href"
-                                class="inline-flex items-center gap-2"
-                            >
-                                <component
-                                    :is="item.icon"
-                                    class="size-4 shrink-0"
-                                />
-                                {{ item.title }}
-                            </Link>
-                        </Button>
-                        <Button variant="ghost" size="sm" class="h-9" as-child>
-                            <Link
-                                :href="logout()"
-                                as="button"
-                                class="inline-flex items-center gap-2"
-                                @click="handleLogout"
-                            >
-                                <LogOut class="size-4 shrink-0" />
-                                Log out
-                            </Link>
-                        </Button>
-                    </template>
-                    <template v-else>
-                        <Button
-                            v-for="item in guestNavItems"
-                            :key="toUrl(item.href)"
-                            variant="ghost"
-                            size="sm"
-                            :class="[
-                                'h-9',
-                                {
-                                    'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
-                                        isCurrentOrParentUrl(item.href),
-                                },
-                            ]"
-                            as-child
-                        >
-                            <Link
-                                :href="item.href"
-                                class="inline-flex items-center gap-2"
-                            >
-                                <component
-                                    :is="item.icon"
-                                    class="size-4 shrink-0"
-                                />
-                                {{ item.title }}
-                            </Link>
-                        </Button>
-                    </template>
-                </nav>
-
-                <Sheet v-model:open="isMobileNavOpen">
-                    <SheetTrigger as-child>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            class="md:hidden"
-                            aria-label="Open navigation menu"
-                        >
-                            <Menu class="size-5" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent
-                        side="right"
-                        class="w-[280px] gap-2 px-4 pt-4 pb-4 sm:w-[320px]"
+            <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+                <aside
+                    class="hidden w-full shrink-0 lg:block lg:w-64 xl:w-72"
+                    aria-label="Fleet filters"
+                >
+                    <div
+                        class="sticky top-24 rounded-xl border border-border/60 border-t-2 border-t-accent/45 bg-card p-5 shadow-sm"
                     >
-                        <SheetHeader class="gap-0 p-0 pb-2">
-                            <SheetTitle class="font-normal leading-none">
-                                <span class="sr-only">ViRent</span>
-                                <ViRentWordmark
-                                    :link="false"
-                                    class="text-2xl sm:text-3xl"
+                        <FleetFilterPanel
+                            :categories="categories"
+                            :filter-attributes="filterAttributes"
+                            :selected-category="filters.category"
+                            :select-category="selectCategory"
+                            :search-query="searchQuery"
+                            :price-bounds="priceBounds"
+                            :get-price-range="getPriceRange"
+                            :on-price-range-change="onPriceRangeChange"
+                            :on-search-input="onSearchInput"
+                            :set-attr="setAttr"
+                            :get-number-range="getNumberRange"
+                            :on-number-range-change="onNumberRangeChange"
+                            :is-boolean-attr-checked="isBooleanAttrChecked"
+                            :get-select-attr-value="getSelectAttrValue"
+                            :is-attribute-disabled="isAttributeDisabled"
+                            :format-price="formatPrice"
+                        />
+                    </div>
+                </aside>
+
+                <div class="min-w-0 flex-1 space-y-6">
+                    <div class="flex items-center justify-between gap-3 lg:hidden">
+                        <p class="text-sm text-muted-foreground">
+                            <span class="font-medium text-foreground">{{
+                                vehicles.total
+                            }}</span>
+                            vehicles
+                        </p>
+
+                        <Sheet v-model:open="isMobileFiltersOpen">
+                            <SheetTrigger as-child>
+                                <Button variant="outline" size="sm" class="gap-2">
+                                    <SlidersHorizontal class="size-4" />
+                                    Filters
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent
+                                side="left"
+                                class="w-[min(100vw-2rem,320px)] gap-4 overflow-y-auto px-4 pt-4 pb-6"
+                            >
+                                <SheetHeader class="gap-0 p-0 pb-2 text-left">
+                                    <SheetTitle class="font-heading text-lg">
+                                        Filters
+                                    </SheetTitle>
+                                </SheetHeader>
+                                <FleetFilterPanel
+                                    :categories="categories"
+                                    :filter-attributes="filterAttributes"
+                                    :selected-category="filters.category"
+                                    :select-category="handleSelectCategory"
+                                    :search-query="searchQuery"
+                                    :price-bounds="priceBounds"
+                                    :get-price-range="getPriceRange"
+                                    :on-price-range-change="onPriceRangeChange"
+                                    :on-search-input="onSearchInput"
+                                    :set-attr="setAttr"
+                                    :get-number-range="getNumberRange"
+                                    :on-number-range-change="onNumberRangeChange"
+                                    :is-boolean-attr-checked="isBooleanAttrChecked"
+                                    :get-select-attr-value="getSelectAttrValue"
+                                    :is-attribute-disabled="isAttributeDisabled"
+                                    :format-price="formatPrice"
                                 />
-                            </SheetTitle>
-                        </SheetHeader>
-                        <nav class="flex flex-col gap-1">
-                            <template v-if="user">
-                                <Button
-                                    v-for="item in authenticatedNavItems"
-                                    :key="`mobile-${toUrl(item.href)}`"
-                                    variant="ghost"
-                                    :class="[
-                                        'h-10 justify-start',
-                                        {
-                                            'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
-                                                isCurrentOrParentUrl(item.href),
-                                        },
-                                    ]"
-                                    as-child
-                                >
-                                    <Link
-                                        :href="item.href"
-                                        class="inline-flex items-center gap-2"
-                                        @click="closeMobileNav"
-                                    >
-                                        <component
-                                            :is="item.icon"
-                                            class="size-4 shrink-0"
-                                        />
-                                        {{ item.title }}
-                                    </Link>
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    class="h-10 justify-start"
-                                    as-child
-                                >
-                                    <Link
-                                        :href="logout()"
-                                        as="button"
-                                        class="inline-flex items-center gap-2"
-                                        @click="
-                                            () => {
-                                                handleLogout();
-                                                closeMobileNav();
-                                            }
-                                        "
-                                    >
-                                        <LogOut class="size-4 shrink-0" />
-                                        Log out
-                                    </Link>
-                                </Button>
-                            </template>
-                            <template v-else>
-                                <Button
-                                    v-for="item in guestNavItems"
-                                    :key="`mobile-${toUrl(item.href)}`"
-                                    variant="ghost"
-                                    :class="[
-                                        'h-10 justify-start',
-                                        {
-                                            'bg-primary/10 text-primary dark:bg-primary/15 dark:text-[#C97FAE]':
-                                                isCurrentOrParentUrl(item.href),
-                                        },
-                                    ]"
-                                    as-child
-                                >
-                                    <Link
-                                        :href="item.href"
-                                        class="inline-flex items-center gap-2"
-                                        @click="closeMobileNav"
-                                    >
-                                        <component
-                                            :is="item.icon"
-                                            class="size-4 shrink-0"
-                                        />
-                                        {{ item.title }}
-                                    </Link>
-                                </Button>
-                            </template>
-                        </nav>
-                    </SheetContent>
-                </Sheet>
-            </div>
-        </header>
+                            </SheetContent>
+                        </Sheet>
+                    </div>
 
-        <main
-            class="mx-auto flex max-w-5xl flex-col items-center px-6 py-16 text-center md:py-24"
-        >
-            <div
-                class="w-full max-w-2xl space-y-6 rounded-xl border border-border/60 border-t-2 border-t-accent/45 bg-card px-8 py-12 shadow-sm"
-            >
-                <div class="flex justify-center">
-                    <ViRentWordmark class="text-4xl sm:text-5xl" />
+                    <p class="hidden text-sm text-muted-foreground lg:block">
+                        <span class="font-medium text-foreground">{{
+                            vehicles.total
+                        }}</span>
+                        {{ vehicles.total === 1 ? 'vehicle' : 'vehicles' }}
+                        available
+                    </p>
+
+                    <div
+                        v-if="vehicles.data.length > 0"
+                        class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3"
+                    >
+                        <Link
+                            v-for="vehicle in vehicles.data"
+                            :key="vehicle.slug"
+                            :href="fleetShow({ vehicle: vehicle.slug })"
+                            class="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        >
+                            <Card
+                                class="h-full gap-0 overflow-hidden rounded-xl border-t-2 border-t-accent/45 py-0 transition duration-200 group-hover:border-primary/30 group-hover:shadow-md"
+                            >
+                                <div class="relative aspect-video bg-muted">
+                                    <img
+                                        v-if="vehicle.thumbnail_url"
+                                        :src="vehicle.thumbnail_url"
+                                        :alt="vehicle.name"
+                                        loading="lazy"
+                                        class="size-full object-cover"
+                                    />
+                                    <div
+                                        v-else
+                                        class="flex size-full items-center justify-center"
+                                    >
+                                        <Car
+                                            class="size-10 text-muted-foreground/50"
+                                            aria-hidden="true"
+                                        />
+                                    </div>
+                                </div>
+
+                                <CardContent class="space-y-3 p-4">
+                                    <div
+                                        class="flex items-start justify-between gap-3"
+                                    >
+                                        <div class="min-w-0 space-y-1">
+                                            <h2
+                                                class="truncate font-heading text-base font-semibold text-foreground"
+                                            >
+                                                {{ vehicle.name }}
+                                            </h2>
+                                            <p class="text-xs text-muted-foreground">
+                                                {{ vehicle.year }}
+                                            </p>
+                                        </div>
+                                        <Badge variant="secondary" class="shrink-0">
+                                            {{ vehicle.category.name }}
+                                        </Badge>
+                                    </div>
+
+                                    <p
+                                        class="font-heading text-lg font-semibold text-foreground"
+                                    >
+                                        {{ formatEur(vehicle.daily_rate) }}
+                                        <span
+                                            class="text-xs font-normal text-muted-foreground"
+                                        >
+                                            / day
+                                        </span>
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    </div>
+
+                    <div
+                        v-else
+                        class="rounded-xl border border-border/60 border-t-2 border-t-accent/45 bg-card px-8 py-12 text-center shadow-sm"
+                    >
+                        <p class="font-heading text-lg font-medium text-foreground">
+                            No vehicles match your filters
+                        </p>
+                        <p class="mt-2 text-sm text-muted-foreground">
+                            Try adjusting your search, category, or attribute
+                            filters.
+                        </p>
+                        <Button
+                            v-if="hasActiveFilters()"
+                            variant="outline"
+                            size="sm"
+                            class="mt-6"
+                            @click="clearAllFilters"
+                        >
+                            Clear all filters
+                        </Button>
+                    </div>
+
+                    <FleetPagination
+                        v-if="vehicles.data.length > 0"
+                        :paginator="vehicles"
+                    />
                 </div>
-
-                <p class="font-heading text-xl font-medium tracking-tight text-foreground md:text-2xl">
-                    Cars, vans, and work machinery — one rental platform for
-                    every job.
-                </p>
-
-                <p class="text-sm text-muted-foreground md:text-base">
-                    ViRent brings passenger cars, commercial vans, and operator
-                    machinery into a single booking experience.
-                </p>
             </div>
-        </main>
-
-        <RentalProfileModal v-if="user" v-model:open="showRentalProfileModal" />
-    </div>
+        </div>
+    </main>
 </template>
