@@ -86,6 +86,7 @@ class VehicleForm
                     ->schema([
                         SpatieMediaLibraryFileUpload::make('fleet-images')
                             ->collection('fleet-images')
+                            ->disk('public')
                             ->multiple()
                             ->reorderable()
                             ->image()
