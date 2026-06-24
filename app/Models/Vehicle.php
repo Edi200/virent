@@ -110,7 +110,7 @@ class Vehicle extends Model implements HasMedia
     {
         $specs = $this->specs ?? [];
 
-        return $this->category->categoryAttributes
+        return array_values($this->category->categoryAttributes
             ->sortBy('sort_order')
             ->map(function (CategoryAttribute $attribute) use ($specs): ?array {
                 if (! array_key_exists($attribute->key, $specs) || $specs[$attribute->key] === null) {
@@ -139,7 +139,7 @@ class Vehicle extends Model implements HasMedia
             })
             ->filter()
             ->values()
-            ->all();
+            ->all());
     }
 
     public function registerMediaCollections(): void

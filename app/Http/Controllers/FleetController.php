@@ -125,7 +125,7 @@ class FleetController extends Controller
      */
     private function vehicleImageProps(Vehicle $vehicle): array
     {
-        return $vehicle->getMedia('fleet-images')
+        return array_values($vehicle->getMedia('fleet-images')
             ->map(fn (Media $media) => [
                 'src' => $media->getUrl(),
                 'width' => (int) ($media->getCustomProperty('width') ?? 1200),
@@ -133,6 +133,6 @@ class FleetController extends Controller
                 'alt' => $vehicle->name,
             ])
             ->values()
-            ->all();
+            ->all());
     }
 }

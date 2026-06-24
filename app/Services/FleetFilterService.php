@@ -109,7 +109,7 @@ class FleetFilterService
     {
         $category->loadMissing('categoryAttributes');
 
-        return $category->categoryAttributes
+        return array_values($category->categoryAttributes
             ->sortBy('sort_order')
             ->map(function (CategoryAttribute $attribute) use ($category, $request): array {
                 $vehicles = $this->facetVehicleQuery(
@@ -146,7 +146,7 @@ class FleetFilterService
                 };
             })
             ->values()
-            ->all();
+            ->all());
     }
 
     /**
@@ -239,14 +239,14 @@ class FleetFilterService
 
         $jsonPath = '$.'.$key;
 
-        if (isset($value['min']) && $value['min'] !== '' && $value['min'] !== null) {
+        if (array_key_exists('min', $value) && $value['min'] !== '' && $value['min'] !== null) {
             $query->whereRaw(
                 'CAST(JSON_EXTRACT(specs, ?) AS DECIMAL(16,4)) >= ?',
                 [$jsonPath, (float) $value['min']],
             );
         }
 
-        if (isset($value['max']) && $value['max'] !== '' && $value['max'] !== null) {
+        if (array_key_exists('max', $value) && $value['max'] !== '' && $value['max'] !== null) {
             $query->whereRaw(
                 'CAST(JSON_EXTRACT(specs, ?) AS DECIMAL(16,4)) <= ?',
                 [$jsonPath, (float) $value['max']],
@@ -312,14 +312,14 @@ class FleetFilterService
      */
     private function distinctTextValues(Collection $vehicles, string $key): array
     {
-        return $vehicles
+        return array_values($vehicles
             ->map(fn (Vehicle $vehicle) => ($vehicle->specs ?? [])[$key] ?? null)
             ->filter(fn ($value) => is_scalar($value) && $value !== '')
             ->map(fn ($value) => (string) $value)
             ->unique()
             ->sort()
             ->values()
-            ->all();
+            ->all());
     }
 
     /**
