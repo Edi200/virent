@@ -15,7 +15,8 @@ class VehicleGroupFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->words(2, true);
+        $words = fake()->unique()->words(2);
+        $name = is_array($words) ? implode(' ', $words) : $words;
 
         return [
             'name' => ucwords($name),
