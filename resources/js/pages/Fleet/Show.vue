@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ArrowLeft, Car } from '@lucide/vue';
-import { computed, ref, toRef } from 'vue';
-import { toast } from 'vue-sonner';
+import { ref, toRef } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,9 +46,6 @@ const props = defineProps<{
     vehicle: VehicleShow;
 }>();
 
-const page = usePage();
-const user = computed(() => page.props.auth?.user ?? null);
-
 const galleryRef = ref<HTMLElement | null>(null);
 const { open: openLightbox } = useLightbox(
     galleryRef,
@@ -64,10 +60,6 @@ const eurFormatter = new Intl.NumberFormat('en-EU', {
 
 function formatEur(amount: string | number): string {
     return eurFormatter.format(Number(amount));
-}
-
-function handleBookClick(): void {
-    toast.info('Booking flow coming soon');
 }
 
 function handleBackClick(): void {
@@ -280,7 +272,6 @@ function handleBackClick(): void {
                             </div>
 
                             <Button
-                                v-if="!user"
                                 variant="default"
                                 size="lg"
                                 class="w-full"
@@ -293,15 +284,6 @@ function handleBackClick(): void {
                                 >
                                     Book this vehicle
                                 </Link>
-                            </Button>
-                            <Button
-                                v-else
-                                variant="default"
-                                size="lg"
-                                class="w-full"
-                                @click="handleBookClick"
-                            >
-                                Book this vehicle
                             </Button>
                         </CardContent>
                     </Card>

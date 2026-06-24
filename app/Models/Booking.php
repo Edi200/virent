@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $end_date
  * @property BookingStatus $status
  * @property string $total_price
+ * @property list<array{label: string, amount: string}>|null $pricing_breakdown
  * @property string $deposit_amount
  * @property Carbon|null $deposit_paid_at
  * @property bool $with_operator
@@ -37,6 +38,7 @@ use Illuminate\Support\Carbon;
     'end_date',
     'status',
     'total_price',
+    'pricing_breakdown',
     'deposit_amount',
     'deposit_paid_at',
     'with_operator',
@@ -57,6 +59,7 @@ class Booking extends Model
             'end_date' => 'date',
             'status' => BookingStatus::class,
             'total_price' => 'decimal:2',
+            'pricing_breakdown' => 'array',
             'deposit_amount' => 'decimal:2',
             'deposit_paid_at' => 'datetime',
             'with_operator' => 'boolean',

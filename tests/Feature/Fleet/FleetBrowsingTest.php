@@ -325,7 +325,7 @@ it('redirects guests to login with intended url when booking', function () {
     $response = $this->get(route('fleet.book', $vehicle));
 
     $response->assertRedirect(route('login'));
-    expect(session('url.intended'))->toBe(route('fleet.show', $vehicle));
+    expect(session('url.intended'))->toBe(route('fleet.book', $vehicle));
 });
 
 it('generates unique slug suffixes for vehicles with the same name', function () {

@@ -71,6 +71,7 @@ class BookingService
                 'end_date' => $end->toDateString(),
                 'status' => BookingStatus::Pending,
                 'total_price' => $pricing['total_price'],
+                'pricing_breakdown' => $pricing['breakdown'],
                 'deposit_amount' => $lockedVehicle->deposit_amount,
                 'with_operator' => $withOperator,
                 'notes' => $notes,

@@ -1,0 +1,508 @@
+<script setup lang="ts">
+import { Head, Link, useForm, useHttp } from '@inertiajs/vue3';
+import { AlertTriangle, ArrowLeft } from '@lucide/vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { store as bookStore } from '@/routes/fleet/book';
+import { pricePreview, show as fleetShow } from '@/routes/fleet';
+
+type VehicleSummary = {
+    slug: string;
+    name: string;
+    daily_rate: string;
+    available_with_operator: boolean;
+    operator_daily_rate: string | null;
+    category: {
+        name: string;
+        slug: string;
+    };
+};
+
+type ExtraOption = {
+    id: number;
+    name: string;
+    price: string;
+    price_type: 'flat' | 'per_day';
+};
+
+type BreakdownLine = {
+    label: string;
+    amount: string;
+};
+
+type PricePreviewResult = {
+    base_price: string;
+    operator_price: string;
+    extras_price: string;
+    total_price: string;
+    breakdown: BreakdownLine[];
+    available: boolean;
+};
+
+const props = defineProps<{
+    vehicle: VehicleSummary;
+    extras: ExtraOption[];
+}>();
+
+const DEBOUNCE_MS = 350;
+
+const today = new Date().toISOString().slice(0, 10);
+
+const form = useForm({
+    start_date: '',
+    end_date: '',
+    with_operator: false,
+    extras: [] as number[],
+});
+
+const previewHttp = useHttp({
+    start_date: '',
+    end_date: '',
+    with_operator: false,
+    extras: [] as number[],
+});
+
+const preview = ref<PricePreviewResult | null>(null);
+const previewLoading = ref(false);
+const previewError = ref<string | null>(null);
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let previewRequestId = 0;
+
+const eurFormatter = new Intl.NumberFormat('en-EU', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+});
+
+function formatEur(amount: string | number): string {
+    return eurFormatter.format(Number(amount));
+}
+
+function formatExtraPrice(extra: ExtraOption): string {
+    if (extra.price_type === 'per_day') {
+        return `${formatEur(extra.price)} / day`;
+    }
+
+    return formatEur(extra.price);
+}
+
+const datesComplete = computed(
+    () =>
+        form.start_date !== ''
+        && form.end_date !== ''
+        && form.end_date > form.start_date,
+);
+
+const isUnavailable = computed(
+    () => preview.value !== null && preview.value.available === false,
+);
+
+const canSubmit = computed(
+    () =>
+        datesComplete.value
+        && !previewLoading.value
+        && preview.value !== null
+        && preview.value.available
+        && !form.processing,
+);
+
+function isExtraSelected(extraId: number): boolean {
+    return form.extras.includes(extraId);
+}
+
+function toggleExtra(extraId: number, checked: boolean | 'indeterminate'): void {
+    if (checked === true) {
+        if (!form.extras.includes(extraId)) {
+            form.extras = [...form.extras, extraId];
+        }
+
+        return;
+    }
+
+    form.extras = form.extras.filter((id) => id !== extraId);
+}
+
+async function fetchPreview(): Promise<void> {
+    if (!datesComplete.value) {
+        preview.value = null;
+        previewError.value = null;
+
+        return;
+    }
+
+    const requestId = ++previewRequestId;
+    previewLoading.value = true;
+    previewError.value = null;
+
+    previewHttp.start_date = form.start_date;
+    previewHttp.end_date = form.end_date;
+    previewHttp.with_operator = form.with_operator;
+    previewHttp.extras = [...form.extras];
+
+    try {
+        const result = (await previewHttp.submit(
+            pricePreview.post({ vehicle: props.vehicle.slug }),
+        )) as PricePreviewResult;
+
+        if (requestId !== previewRequestId) {
+            return;
+        }
+
+        preview.value = result;
+    } catch {
+        if (requestId !== previewRequestId) {
+            return;
+        }
+
+        preview.value = null;
+        previewError.value = 'Unable to load price estimate. Please try again.';
+    } finally {
+        if (requestId === previewRequestId) {
+            previewLoading.value = false;
+        }
+    }
+}
+
+function schedulePreview(): void {
+    if (debounceTimer !== null) {
+        clearTimeout(debounceTimer);
+    }
+
+    debounceTimer = setTimeout(() => {
+        void fetchPreview();
+    }, DEBOUNCE_MS);
+}
+
+watch(
+    () => [form.start_date, form.end_date, form.with_operator, form.extras] as const,
+    () => {
+        if (!datesComplete.value) {
+            preview.value = null;
+            previewError.value = null;
+            previewRequestId++;
+
+            return;
+        }
+
+        schedulePreview();
+    },
+    { deep: true },
+);
+
+onUnmounted(() => {
+    if (debounceTimer !== null) {
+        clearTimeout(debounceTimer);
+    }
+
+    previewRequestId++;
+});
+
+function submit(): void {
+    form.post(bookStore.url({ vehicle: props.vehicle.slug }));
+}
+</script>
+
+<template>
+    <Head :title="`Book ${vehicle.name}`" />
+
+    <main class="mx-auto max-w-7xl px-6 py-8">
+        <div class="space-y-8">
+            <Button variant="outline" size="sm" class="w-fit gap-2" as-child>
+                <Link :href="fleetShow({ vehicle: vehicle.slug })">
+                    <ArrowLeft class="size-4 shrink-0" aria-hidden="true" />
+                    Back to vehicle
+                </Link>
+            </Button>
+
+            <div class="lg:grid lg:grid-cols-3 lg:items-start lg:gap-8">
+                <div class="min-w-0 space-y-6 lg:col-span-2">
+                    <Card
+                        class="gap-0 overflow-hidden rounded-xl border-t-2 border-t-accent/45 py-0"
+                    >
+                        <CardContent class="space-y-4 p-5">
+                            <div
+                                class="flex flex-wrap items-start justify-between gap-3"
+                            >
+                                <div class="min-w-0 space-y-1">
+                                    <h1
+                                        class="font-heading text-2xl font-semibold text-foreground"
+                                    >
+                                        {{ vehicle.name }}
+                                    </h1>
+                                    <p class="text-sm text-muted-foreground">
+                                        {{ vehicle.category.name }}
+                                    </p>
+                                </div>
+                                <Badge variant="secondary" class="shrink-0">
+                                    {{ formatEur(vehicle.daily_rate) }} / day
+                                </Badge>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card
+                        class="gap-0 overflow-hidden rounded-xl border-t-2 border-t-accent/45 py-0"
+                    >
+                        <CardContent class="space-y-6 p-5">
+                            <div class="space-y-1">
+                                <h2
+                                    class="font-heading text-lg font-semibold text-foreground"
+                                >
+                                    Rental dates
+                                </h2>
+                                <p class="text-sm text-muted-foreground">
+                                    Return date is the day you bring the
+                                    vehicle back (not charged).
+                                </p>
+                            </div>
+
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="space-y-2">
+                                    <Label for="start_date">Pick-up date</Label>
+                                    <Input
+                                        id="start_date"
+                                        v-model="form.start_date"
+                                        type="date"
+                                        :min="today"
+                                        required
+                                    />
+                                    <p
+                                        v-if="form.errors.start_date"
+                                        class="text-sm text-destructive"
+                                    >
+                                        {{ form.errors.start_date }}
+                                    </p>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <Label for="end_date">Return date</Label>
+                                    <Input
+                                        id="end_date"
+                                        v-model="form.end_date"
+                                        type="date"
+                                        :min="form.start_date || today"
+                                        required
+                                    />
+                                    <p
+                                        v-if="form.errors.end_date"
+                                        class="text-sm text-destructive"
+                                    >
+                                        {{ form.errors.end_date }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p
+                                v-if="form.errors.dates"
+                                class="text-sm text-destructive"
+                            >
+                                {{ form.errors.dates }}
+                            </p>
+
+                            <div
+                                v-if="vehicle.available_with_operator"
+                                class="space-y-3 border-t border-border pt-6"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <Checkbox
+                                        id="with_operator"
+                                        :model-value="form.with_operator"
+                                        @update:model-value="
+                                            (checked) =>
+                                                (form.with_operator =
+                                                    checked === true)
+                                        "
+                                    />
+                                    <div class="space-y-1">
+                                        <Label
+                                            for="with_operator"
+                                            class="cursor-pointer font-normal"
+                                        >
+                                            Include operator
+                                        </Label>
+                                        <p
+                                            v-if="
+                                                vehicle.operator_daily_rate
+                                                    !== null
+                                            "
+                                            class="text-sm text-muted-foreground"
+                                        >
+                                            Operator rate:
+                                            {{
+                                                formatEur(
+                                                    vehicle.operator_daily_rate,
+                                                )
+                                            }}
+                                            / day
+                                        </p>
+                                    </div>
+                                </div>
+                                <p
+                                    v-if="form.errors.with_operator"
+                                    class="text-sm text-destructive"
+                                >
+                                    {{ form.errors.with_operator }}
+                                </p>
+                            </div>
+
+                            <div
+                                v-if="extras.length > 0"
+                                class="space-y-4 border-t border-border pt-6"
+                            >
+                                <h2
+                                    class="font-heading text-lg font-semibold text-foreground"
+                                >
+                                    Extras
+                                </h2>
+
+                                <div class="space-y-3">
+                                    <div
+                                        v-for="extra in extras"
+                                        :key="extra.id"
+                                        class="flex items-start gap-3"
+                                    >
+                                        <Checkbox
+                                            :id="`extra-${extra.id}`"
+                                            :model-value="
+                                                isExtraSelected(extra.id)
+                                            "
+                                            @update:model-value="
+                                                (checked) =>
+                                                    toggleExtra(
+                                                        extra.id,
+                                                        checked,
+                                                    )
+                                            "
+                                        />
+                                        <Label
+                                            :for="`extra-${extra.id}`"
+                                            class="flex flex-1 cursor-pointer items-baseline justify-between gap-3 font-normal"
+                                        >
+                                            <span>{{ extra.name }}</span>
+                                            <span
+                                                class="shrink-0 text-sm text-muted-foreground"
+                                            >
+                                                {{ formatExtraPrice(extra) }}
+                                            </span>
+                                        </Label>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <aside class="mt-8 lg:col-span-1 lg:mt-0">
+                    <Card
+                        class="gap-0 overflow-hidden rounded-xl border-t-2 border-t-accent/45 py-0 lg:sticky lg:top-24"
+                    >
+                        <CardContent class="space-y-5 p-5">
+                            <h2
+                                class="font-heading text-lg font-semibold text-foreground"
+                            >
+                                Price estimate
+                            </h2>
+
+                            <div
+                                v-if="!datesComplete"
+                                class="text-sm text-muted-foreground"
+                            >
+                                Select pick-up and return dates to see your
+                                estimate.
+                            </div>
+
+                            <div
+                                v-else-if="previewLoading && !preview"
+                                class="text-sm text-muted-foreground"
+                            >
+                                Calculating…
+                            </div>
+
+                            <div
+                                v-else-if="previewError"
+                                class="text-sm text-destructive"
+                            >
+                                {{ previewError }}
+                            </div>
+
+                            <template v-else-if="preview">
+                                <div
+                                    v-if="isUnavailable"
+                                    class="flex gap-3 rounded-lg border border-amber-300/80 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
+                                    role="alert"
+                                >
+                                    <AlertTriangle
+                                        class="mt-0.5 size-4 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <p>
+                                        This vehicle is not available for the
+                                        selected dates. Please choose different
+                                        dates.
+                                    </p>
+                                </div>
+
+                                <ul class="space-y-2 text-sm">
+                                    <li
+                                        v-for="(line, index) in preview.breakdown"
+                                        :key="`${line.label}-${index}`"
+                                        class="flex items-baseline justify-between gap-3"
+                                    >
+                                        <span class="text-muted-foreground">
+                                            {{ line.label }}
+                                        </span>
+                                        <span class="font-medium text-foreground">
+                                            {{ formatEur(line.amount) }}
+                                        </span>
+                                    </li>
+                                </ul>
+
+                                <div
+                                    class="flex items-baseline justify-between gap-3 border-t border-border pt-4"
+                                >
+                                    <span
+                                        class="font-heading text-base font-semibold text-foreground"
+                                    >
+                                        Total
+                                    </span>
+                                    <span
+                                        class="font-heading text-xl font-semibold text-foreground"
+                                    >
+                                        {{ formatEur(preview.total_price) }}
+                                    </span>
+                                </div>
+                            </template>
+
+                            <Button
+                                type="button"
+                                variant="default"
+                                size="lg"
+                                class="w-full"
+                                :disabled="!canSubmit"
+                                @click="submit"
+                            >
+                                {{
+                                    form.processing
+                                        ? 'Submitting…'
+                                        : 'Request booking'
+                                }}
+                            </Button>
+
+                            <p class="text-xs text-muted-foreground">
+                                No payment is taken now. We will contact you to
+                                confirm your booking.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </aside>
+            </div>
+        </div>
+    </main>
+</template>

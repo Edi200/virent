@@ -53,12 +53,13 @@ it('creates a booking with snapshotted extras and pricing', function () {
         $end,
         false,
         new Collection([$flatExtra, $perDayExtra]),
-    )['total_price'];
+    );
 
     expect($booking->vehicle_id)->toBe($vehicle->id)
         ->and($booking->customer_id)->toBe($customer->id)
         ->and($booking->status)->toBe(BookingStatus::Pending)
-        ->and($booking->total_price)->toBe($expectedTotal)
+        ->and($booking->total_price)->toBe($expectedTotal['total_price'])
+        ->and($booking->pricing_breakdown)->toBe($expectedTotal['breakdown'])
         ->and($booking->deposit_amount)->toBe('500.00')
         ->and($booking->with_operator)->toBeFalse()
         ->and($booking->notes)->toBe('Please deliver early.')

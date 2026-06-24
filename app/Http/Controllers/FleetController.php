@@ -7,7 +7,6 @@ use App\Models\Category;
 use App\Models\Vehicle;
 use App\Models\VehicleGroup;
 use App\Services\FleetFilterService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -65,19 +64,6 @@ class FleetController extends Controller
         return Inertia::render('Fleet/Show', [
             'vehicle' => $this->vehicleShowProps($vehicle),
         ]);
-    }
-
-    public function book(Vehicle $vehicle): RedirectResponse
-    {
-        abort_unless($vehicle->status === VehicleStatus::Available, 404);
-
-        if (auth()->check()) {
-            return redirect()->route('fleet.show', $vehicle);
-        }
-
-        return redirect()
-            ->setIntendedUrl(route('fleet.show', $vehicle))
-            ->route('login');
     }
 
     private function resolveCategory(?string $slug): ?Category
