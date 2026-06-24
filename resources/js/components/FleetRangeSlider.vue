@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { RangeBounds } from '@/composables/useFleetFilters';
 import { Slider } from '@/components/ui/slider';
+import type { RangeBounds } from '@/composables/useFleetFilters';
 
-const props = withDefaults(
+withDefaults(
     defineProps<{
         bounds: RangeBounds;
         modelValue: [number, number];

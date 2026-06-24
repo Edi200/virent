@@ -3,10 +3,11 @@ import {
     nextTick,
     onMounted,
     onUnmounted,
-    type MaybeRef,
-    type Ref,
-    toValue,
+    
+    
+    toValue
 } from 'vue';
+import type {MaybeRef, Ref} from 'vue';
 import 'photoswipe/style.css';
 
 export type LightboxItem = {

@@ -15,10 +15,11 @@ import {
     SheetTrigger,
 } from '@/components/ui/sheet';
 import {
-    useFleetFilters,
-    type FleetFilters,
-    type RangeBounds,
+    useFleetFilters
+    
+    
 } from '@/composables/useFleetFilters';
+import type {FleetFilters, RangeBounds} from '@/composables/useFleetFilters';
 import { show as fleetShow } from '@/routes/fleet';
 
 type Category = {

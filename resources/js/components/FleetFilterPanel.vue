@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { SlidersHorizontal } from '@lucide/vue';
+import { computed } from 'vue';
 import FleetRangeSlider from '@/components/FleetRangeSlider.vue';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
