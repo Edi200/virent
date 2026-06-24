@@ -15,7 +15,7 @@ import {
     SheetTrigger,
 } from '@/components/ui/sheet';
 import { useFleetFilters } from '@/composables/useFleetFilters';
-import type { FleetFilters, RangeBounds } from '@/composables/useFleetFilters';
+import type { FleetCategory, FleetFilters, RangeBounds } from '@/composables/useFleetFilters';
 import { show as fleetShow } from '@/routes/fleet';
 
 type VehicleGroup = {
@@ -24,12 +24,7 @@ type VehicleGroup = {
     sort_order: number;
 };
 
-type Category = {
-    name: string;
-    slug: string;
-    sort_order: number;
-    group_slug: string | null;
-};
+type Category = FleetCategory;
 
 type FilterAttribute = {
     key: string;
@@ -95,7 +90,7 @@ const {
     isAttributeDisabled,
     clearAllFilters,
     hasActiveFilters,
-} = useFleetFilters(() => props.filters);
+} = useFleetFilters(() => props.filters, () => props.categories);
 
 const eurFormatter = new Intl.NumberFormat('en-EU', {
     style: 'currency',

@@ -7,6 +7,13 @@ export type FleetAttrValue =
     | { min?: string; max?: string }
     | boolean;
 
+export type FleetCategory = {
+    name: string;
+    slug: string;
+    sort_order: number;
+    group_slug: string | null;
+};
+
 export type FleetFilters = {
     group: string | null;
     category: string | null;
@@ -120,7 +127,10 @@ export function filterValuesToRange(
     ];
 }
 
-export function useFleetFilters(getFilters: () => FleetFilters) {
+export function useFleetFilters(
+    getFilters: () => FleetFilters,
+    getCategories: () => FleetCategory[],
+) {
     const searchQuery = ref('');
 
     let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -218,8 +228,22 @@ export function useFleetFilters(getFilters: () => FleetFilters) {
         applyFilters({ category: slug, attrs: {} });
     }
 
+    function categoriesForGroup(groupSlug: string | null): FleetCategory[] {
+        if (!groupSlug) {
+            return getCategories();
+        }
+
+        return getCategories().filter(
+            (category) => category.group_slug === groupSlug,
+        );
+    }
+
     function selectGroup(slug: string | null): void {
-        applyFilters({ group: slug, category: null, attrs: {} });
+        const scopedCategories = slug ? categoriesForGroup(slug) : [];
+        const category =
+            scopedCategories.length === 1 ? scopedCategories[0].slug : null;
+
+        applyFilters({ group: slug, category, attrs: {} });
     }
 
     function onSearchInput(value: string | number): void {
