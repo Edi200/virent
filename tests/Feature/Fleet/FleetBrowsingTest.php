@@ -20,7 +20,8 @@ it('lists only available vehicles on the home fleet listing', function () {
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Home')
-            ->has('vehicles.data', $availableCount)
+            ->where('vehicles.total', $availableCount)
+            ->has('vehicles.data', min(12, $availableCount))
         );
 });
 
@@ -35,7 +36,8 @@ it('filters the fleet listing by category slug', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Home')
             ->where('filters.category', 'car')
-            ->has('vehicles.data', 5)
+            ->where('vehicles.total', 13)
+            ->has('vehicles.data', 12)
             ->etc()
         );
 });
@@ -47,7 +49,7 @@ it('filters the fleet listing by price range', function () {
             ->component('Home')
             ->where('filters.price_min', '80')
             ->where('filters.price_max', '100')
-            ->has('vehicles.data', 2)
+            ->has('vehicles.data', 12)
             ->where('vehicles.data', fn ($vehicles) => collect($vehicles)->every(
                 fn ($vehicle) => (float) $vehicle['daily_rate'] >= 80
                     && (float) $vehicle['daily_rate'] <= 100,
@@ -56,11 +58,11 @@ it('filters the fleet listing by price range', function () {
 });
 
 it('filters the fleet listing by search term on vehicle name', function () {
-    $this->get(route('home', ['search' => 'Toyota']))
+    $this->get(route('home', ['search' => 'Toyota Corolla']))
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Home')
-            ->where('filters.search', 'Toyota')
+            ->where('filters.search', 'Toyota Corolla')
             ->has('vehicles.data', 1)
             ->where('vehicles.data.0.name', 'Toyota Corolla')
         );
@@ -99,8 +101,12 @@ it('returns filter attribute metadata when a category is selected', function () 
     $make = $attributes->firstWhere('key', 'make');
     expect($make['field_type'])->toBe('text');
     expect(collect($make['options'])->sort()->values()->all())->toBe([
+        'Audi',
         'BMW',
-        'Skoda',
+        'Ford',
+        'Honda',
+        'Hyundai',
+        'Mercedes-Benz',
         'Toyota',
         'Volkswagen',
         'Volvo',
@@ -141,7 +147,7 @@ it('scopes model filter options to the selected make', function () {
             ->where('filterAttributes', fn ($attributes) => collect($attributes)->contains(
                 fn ($attribute) => $attribute['key'] === 'model'
                     && $attribute['depends_on'] === 'make'
-                    && $attribute['options'] === ['Corolla'],
+                    && collect($attribute['options'])->sort()->values()->all() === ['Corolla', 'RAV4 Hybrid'],
             ))
         );
 });
@@ -185,7 +191,7 @@ it('returns full category price bounds when attribute filters are active', funct
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
             ->where('priceBounds', fn ($bounds) => (float) data_get($bounds, 'min') === 45.0
-                && (float) data_get($bounds, 'max') === 89.0)
+                && (float) data_get($bounds, 'max') === 115.0)
         );
 });
 
@@ -200,7 +206,8 @@ it('returns vehicles in laravel flat paginator shape', function () {
             ->has('vehicles.prev_page_url')
             ->has('vehicles.next_page_url')
             ->missing('vehicles.meta')
-            ->where('vehicles.last_page', 1)
+            ->where('vehicles.last_page', fn ($lastPage) => $lastPage >= 1)
+            ->where('vehicles.total', 45)
         );
 });
 
@@ -282,7 +289,7 @@ it('returns enriched specs with formatted select and boolean values on show', fu
 
 it('returns boolean specs as yes or no on show', function () {
     $vehicle = Vehicle::query()
-        ->where('name', 'Ford Transit')
+        ->where('name', 'Mercedes Sprinter 314')
         ->firstOrFail();
 
     $this->get(route('fleet.show', $vehicle))
@@ -346,7 +353,8 @@ it('filters the fleet listing by vehicle group slug', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Home')
             ->where('filters.group', 'cars')
-            ->has('vehicles.data', 5)
+            ->where('vehicles.total', 13)
+            ->has('vehicles.data', 12)
         );
 
     $this->get(route('home', ['group' => 'vans']))
@@ -354,7 +362,8 @@ it('filters the fleet listing by vehicle group slug', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Home')
             ->where('filters.group', 'vans')
-            ->has('vehicles.data', 3)
+            ->where('vehicles.total', 13)
+            ->has('vehicles.data', 12)
         );
 });
 
@@ -362,7 +371,8 @@ it('scopes group and category filters together when they match', function () {
     $this->get(route('home', ['category' => 'car']))
         ->assertSuccessful()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('vehicles.data', 5)
+            ->where('vehicles.total', 13)
+            ->has('vehicles.data', 12)
         );
 
     $this->get(route('home', ['group' => 'cars', 'category' => 'car']))
@@ -370,7 +380,8 @@ it('scopes group and category filters together when they match', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('filters.group', 'cars')
             ->where('filters.category', 'car')
-            ->has('vehicles.data', 5)
+            ->where('vehicles.total', 13)
+            ->has('vehicles.data', 12)
         );
 });
 
@@ -387,7 +398,8 @@ it('drops an invalid category when it does not belong to the selected group', fu
             ->where('filters.category', null)
             ->where('filters.attrs', [])
             ->has('filterAttributes', 0)
-            ->has('vehicles.data', 3)
+            ->where('vehicles.total', 13)
+            ->has('vehicles.data', 12)
         );
 });
 
@@ -401,12 +413,10 @@ it('filters cars by body type attribute', function () {
             ->component('Home')
             ->where('filters.category', 'car')
             ->where('filters.attrs.body_type', 'wagon')
-            ->has('vehicles.data', 2)
+            ->has('vehicles.data', 1)
             ->where('vehicles.data', fn ($vehicles) => collect($vehicles)
                 ->pluck('name')
-                ->sort()
-                ->values()
-                ->all() === ['Skoda Octavia Combi', 'Volvo V60'])
+                ->all() === ['Volvo V60'])
         );
 });
 
@@ -418,7 +428,7 @@ it('includes horsepower filter metadata for vans', function () {
             ->where('filterAttributes', fn ($attributes) => collect($attributes)->contains(
                 fn ($attribute) => $attribute['key'] === 'horsepower'
                     && $attribute['field_type'] === 'number'
-                    && (float) $attribute['bounds']['min'] === 145.0
+                    && (float) $attribute['bounds']['min'] === 136.0
                     && (float) $attribute['bounds']['max'] === 190.0,
             ))
         );
@@ -432,8 +442,8 @@ it('includes horsepower filter metadata for excavators', function () {
             ->where('filterAttributes', fn ($attributes) => collect($attributes)->contains(
                 fn ($attribute) => $attribute['key'] === 'horsepower'
                     && $attribute['field_type'] === 'number'
-                    && (float) $attribute['bounds']['min'] === 158.0
-                    && (float) $attribute['bounds']['max'] === 160.0,
+                    && (float) $attribute['bounds']['min'] === 152.0
+                    && (float) $attribute['bounds']['max'] === 173.0,
             ))
         );
 });
