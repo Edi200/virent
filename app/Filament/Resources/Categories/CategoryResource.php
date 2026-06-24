@@ -49,6 +49,7 @@ class CategoryResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return Category::query()
+            ->with('vehicleGroup')
             ->withCount('vehicles');
     }
 

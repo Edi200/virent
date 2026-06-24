@@ -21,6 +21,13 @@ type Category = {
     name: string;
     slug: string;
     sort_order: number;
+    group_slug: string | null;
+};
+
+type VehicleGroup = {
+    name: string;
+    slug: string;
+    sort_order: number;
 };
 
 type FilterAttribute = {
@@ -33,8 +40,11 @@ type FilterAttribute = {
 };
 
 const props = defineProps<{
+    groups: VehicleGroup[];
     categories: Category[];
     filterAttributes: FilterAttribute[];
+    selectedGroup: string | null;
+    selectGroup: (slug: string | null) => void;
     selectedCategory: string | null;
     selectCategory: (slug: string | null) => void;
     searchQuery: string;
@@ -60,9 +70,23 @@ const props = defineProps<{
 
 const anyOption = '__any__';
 
+const selectedGroupValue = computed(
+    () => props.selectedGroup ?? anyOption,
+);
+
 const selectedCategoryValue = computed(
     () => props.selectedCategory ?? anyOption,
 );
+
+const visibleCategories = computed(() => {
+    if (!props.selectedGroup) {
+        return props.categories;
+    }
+
+    return props.categories.filter(
+        (category) => category.group_slug === props.selectedGroup,
+    );
+});
 
 function isStringOptions(
     options: string[] | Record<string, string>,
@@ -96,6 +120,30 @@ function numberBounds(attribute: FilterAttribute): RangeBounds {
         </div>
 
         <div class="space-y-2">
+            <Label for="fleet-group">Group</Label>
+            <Select
+                :model-value="selectedGroupValue"
+                @update:model-value="(value) => selectGroup(
+                    value === anyOption ? null : String(value),
+                )"
+            >
+                <SelectTrigger id="fleet-group" class="w-full">
+                    <SelectValue placeholder="All groups" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem :value="anyOption">All</SelectItem>
+                    <SelectItem
+                        v-for="group in groups"
+                        :key="group.slug"
+                        :value="group.slug"
+                    >
+                        {{ group.name }}
+                    </SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+
+        <div class="space-y-2">
             <Label for="fleet-category">Category</Label>
             <Select
                 :model-value="selectedCategoryValue"
@@ -109,7 +157,7 @@ function numberBounds(attribute: FilterAttribute): RangeBounds {
                 <SelectContent>
                     <SelectItem :value="anyOption">All</SelectItem>
                     <SelectItem
-                        v-for="category in categories"
+                        v-for="category in visibleCategories"
                         :key="category.slug"
                         :value="category.slug"
                     >

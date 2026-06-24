@@ -2,25 +2,23 @@
 
 namespace Database\Factories;
 
-use App\Models\Category;
 use App\Models\VehicleGroup;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Category>
+ * @extends Factory<VehicleGroup>
  */
-class CategoryFactory extends Factory
+class VehicleGroupFactory extends Factory
 {
     /**
      * @return array<string, mixed>
      */
     public function definition(): array
     {
-        $name = fake()->unique()->company();
+        $name = fake()->unique()->words(2, true);
 
         return [
-            'group_id' => VehicleGroup::factory(),
-            'name' => $name,
+            'name' => ucwords($name),
             'icon' => null,
             'sort_order' => fake()->numberBetween(0, 10),
         ];

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Categories\Tables;
+namespace App\Filament\Resources\VehicleGroups\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -9,7 +9,7 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class CategoriesTable
+class VehicleGroupsTable
 {
     public static function configure(Table $table): Table
     {
@@ -22,13 +22,9 @@ class CategoriesTable
                 TextColumn::make('slug')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('vehicleGroup.name')
-                    ->label('Group')
-                    ->searchable()
-                    ->sortable(),
-                TextColumn::make('vehicles_count')
-                    ->counts('vehicles')
-                    ->label('Vehicles')
+                TextColumn::make('categories_count')
+                    ->counts('categories')
+                    ->label('Categories')
                     ->sortable(),
                 TextColumn::make('sort_order')
                     ->numeric()

@@ -8,6 +8,7 @@ export type FleetAttrValue =
     | boolean;
 
 export type FleetFilters = {
+    group: string | null;
     category: string | null;
     search: string | null;
     price_min: string | null;
@@ -64,6 +65,10 @@ function cleanAttrs(
 
 function buildQueryFromFilters(input: FleetFilters): Record<string, unknown> {
     const query: Record<string, unknown> = {};
+
+    if (input.group) {
+        query.group = input.group;
+    }
 
     if (input.category) {
         query.category = input.category;
@@ -163,6 +168,8 @@ export function useFleetFilters(getFilters: () => FleetFilters) {
         const current = getFilters();
 
         const next: FleetFilters = {
+            group:
+                partial.group !== undefined ? partial.group : current.group,
             category:
                 partial.category !== undefined
                     ? partial.category
@@ -180,6 +187,14 @@ export function useFleetFilters(getFilters: () => FleetFilters) {
             attrs:
                 partial.attrs !== undefined ? partial.attrs : current.attrs,
         };
+
+        if (
+            partial.group !== undefined
+            && partial.group !== current.group
+        ) {
+            next.category = partial.category ?? null;
+            next.attrs = partial.attrs ?? {};
+        }
 
         if (
             partial.category !== undefined
@@ -201,6 +216,10 @@ export function useFleetFilters(getFilters: () => FleetFilters) {
 
     function selectCategory(slug: string | null): void {
         applyFilters({ category: slug, attrs: {} });
+    }
+
+    function selectGroup(slug: string | null): void {
+        applyFilters({ group: slug, category: null, attrs: {} });
     }
 
     function onSearchInput(value: string | number): void {
@@ -360,7 +379,8 @@ export function useFleetFilters(getFilters: () => FleetFilters) {
         const current = getFilters();
 
         return Boolean(
-            current.category
+            current.group
+            || current.category
             || current.search
             || current.price_min
             || current.price_max
@@ -371,6 +391,7 @@ export function useFleetFilters(getFilters: () => FleetFilters) {
     return {
         searchQuery,
         selectCategory,
+        selectGroup,
         onSearchInput,
         getPriceRange,
         onPriceRangeChange,

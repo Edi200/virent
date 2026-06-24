@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Filament\Resources\Categories\Schemas;
+namespace App\Filament\Resources\VehicleGroups\Schemas;
 
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
-class CategoryInfolist
+class VehicleGroupInfolist
 {
     public static function configure(Schema $schema): Schema
     {
@@ -16,9 +16,6 @@ class CategoryInfolist
                 Section::make('Overview')
                     ->columns(2)
                     ->schema([
-                        TextEntry::make('vehicleGroup.name')
-                            ->label('Group')
-                            ->placeholder('-'),
                         TextEntry::make('name'),
                         TextEntry::make('slug'),
                         TextEntry::make('icon')

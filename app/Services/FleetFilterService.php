@@ -6,6 +6,7 @@ use App\Enums\CategoryAttributeFieldType;
 use App\Models\Category;
 use App\Models\CategoryAttribute;
 use App\Models\Vehicle;
+use App\Models\VehicleGroup;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -20,7 +21,9 @@ class FleetFilterService
     {
         $query->available();
 
-        $category = $this->resolveCategory($request->query('category'));
+        [$group, $category] = $this->resolveGroupAndCategory($request);
+
+        $this->applyGroupFilter($query, $group);
 
         $query->when(
             $category !== null,
@@ -39,6 +42,7 @@ class FleetFilterService
 
     /**
      * @return array{
+     *     group: string|null,
      *     category: string|null,
      *     search: string|null,
      *     price_min: string|null,
@@ -48,15 +52,18 @@ class FleetFilterService
      */
     public function filtersFromRequest(Request $request): array
     {
-        $category = $request->query('category');
+        [$group, $category] = $this->resolveGroupAndCategory($request);
+
+        $categorySlug = $category?->slug;
         $attrs = is_array($request->input('attrs')) ? $request->input('attrs') : [];
 
-        if (blank($category)) {
+        if (blank($categorySlug)) {
             $attrs = [];
         }
 
         return [
-            'category' => $category,
+            'group' => $group?->slug,
+            'category' => $categorySlug,
             'search' => $request->query('search'),
             'price_min' => $request->query('price_min'),
             'price_max' => $request->query('price_max'),
@@ -276,9 +283,12 @@ class FleetFilterService
         bool $excludePrice = false,
         bool $excludeAttributes = false,
     ): Builder {
-        $category ??= $this->resolveCategory($request->query('category'));
+        [$group, $resolvedCategory] = $this->resolveGroupAndCategory($request);
+        $category ??= $resolvedCategory;
 
         $query = Vehicle::query()->available();
+
+        $this->applyGroupFilter($query, $group);
 
         if ($category !== null) {
             $query->where('category_id', $category->id);
@@ -295,6 +305,45 @@ class FleetFilterService
         }
 
         return $query;
+    }
+
+    /**
+     * @return array{0: ?VehicleGroup, 1: ?Category}
+     */
+    private function resolveGroupAndCategory(Request $request): array
+    {
+        $group = $this->resolveGroup($request->query('group'));
+        $category = $this->resolveCategory($request->query('category'));
+
+        if ($group !== null && $category !== null && $category->group_id !== $group->id) {
+            $category = null;
+        }
+
+        return [$group, $category];
+    }
+
+    private function resolveGroup(?string $slug): ?VehicleGroup
+    {
+        if (blank($slug)) {
+            return null;
+        }
+
+        return VehicleGroup::query()->where('slug', $slug)->first();
+    }
+
+    /**
+     * @param  Builder<Vehicle>  $query
+     */
+    private function applyGroupFilter(Builder $query, ?VehicleGroup $group): void
+    {
+        if ($group === null) {
+            return;
+        }
+
+        $query->whereHas(
+            'category',
+            fn (Builder $builder) => $builder->where('group_id', $group->id),
+        );
     }
 
     private function resolveCategory(?string $slug): ?Category

@@ -14,18 +14,21 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
-import {
-    useFleetFilters
-    
-    
-} from '@/composables/useFleetFilters';
-import type {FleetFilters, RangeBounds} from '@/composables/useFleetFilters';
+import { useFleetFilters } from '@/composables/useFleetFilters';
+import type { FleetFilters, RangeBounds } from '@/composables/useFleetFilters';
 import { show as fleetShow } from '@/routes/fleet';
+
+type VehicleGroup = {
+    name: string;
+    slug: string;
+    sort_order: number;
+};
 
 type Category = {
     name: string;
     slug: string;
     sort_order: number;
+    group_slug: string | null;
 };
 
 type FilterAttribute = {
@@ -67,6 +70,7 @@ type PaginatedVehicles = {
 };
 
 const props = defineProps<{
+    groups: VehicleGroup[];
     categories: Category[];
     vehicles: PaginatedVehicles;
     filters: FleetFilters;
@@ -79,6 +83,7 @@ const isMobileFiltersOpen = ref(false);
 const {
     searchQuery,
     selectCategory,
+    selectGroup,
     onSearchInput,
     getPriceRange,
     onPriceRangeChange,
@@ -110,6 +115,11 @@ function handleSelectCategory(slug: string | null): void {
     selectCategory(slug);
     isMobileFiltersOpen.value = false;
 }
+
+function handleSelectGroup(slug: string | null): void {
+    selectGroup(slug);
+    isMobileFiltersOpen.value = false;
+}
 </script>
 
 <template>
@@ -133,8 +143,11 @@ function handleSelectCategory(slug: string | null): void {
                         class="sticky top-24 rounded-xl border border-border/60 border-t-2 border-t-accent/45 bg-card p-5 shadow-sm"
                     >
                         <FleetFilterPanel
+                            :groups="groups"
                             :categories="categories"
                             :filter-attributes="filterAttributes"
+                            :selected-group="filters.group"
+                            :select-group="selectGroup"
                             :selected-category="filters.category"
                             :select-category="selectCategory"
                             :search-query="searchQuery"
@@ -179,8 +192,11 @@ function handleSelectCategory(slug: string | null): void {
                                     </SheetTitle>
                                 </SheetHeader>
                                 <FleetFilterPanel
+                                    :groups="groups"
                                     :categories="categories"
                                     :filter-attributes="filterAttributes"
+                                    :selected-group="filters.group"
+                                    :select-group="handleSelectGroup"
                                     :selected-category="filters.category"
                                     :select-category="handleSelectCategory"
                                     :search-query="searchQuery"

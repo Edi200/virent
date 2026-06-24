@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\Categories\Schemas;
+namespace App\Filament\Resources\VehicleGroups\Schemas;
 
-use App\Models\Category;
-use Filament\Forms\Components\Select;
+use App\Models\VehicleGroup;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Utilities\Get;
@@ -11,17 +10,12 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
-class CategoryForm
+class VehicleGroupForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->components([
-                Select::make('group_id')
-                    ->relationship('vehicleGroup', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->required(),
                 TextInput::make('name')
                     ->required()
                     ->maxLength(255)
@@ -43,7 +37,7 @@ class CategoryForm
                     ->maxLength(255)
                     ->readOnly(fn (Get $get, string $operation): bool => $operation === 'edit' && ! $get('_unlock_slug'))
                     ->dehydrated()
-                    ->unique(Category::class, 'slug', ignoreRecord: true),
+                    ->unique(VehicleGroup::class, 'slug', ignoreRecord: true),
                 TextInput::make('icon')
                     ->maxLength(255),
                 TextInput::make('sort_order')

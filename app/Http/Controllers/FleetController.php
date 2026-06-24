@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\VehicleStatus;
 use App\Models\Category;
 use App\Models\Vehicle;
+use App\Models\VehicleGroup;
 use App\Services\FleetFilterService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,8 @@ class FleetController extends Controller
 {
     public function index(Request $request, FleetFilterService $fleetFilter): Response
     {
-        $category = $this->resolveCategory($request->query('category'));
+        $filters = $fleetFilter->filtersFromRequest($request);
+        $category = $this->resolveCategory($filters['category']);
 
         $vehicles = Vehicle::query()
             ->fleetFilter($request)
@@ -26,14 +28,27 @@ class FleetController extends Controller
             ->withQueryString()
             ->through(fn (Vehicle $vehicle) => $this->vehicleListProps($vehicle));
 
-        $categories = Category::query()
+        $groups = VehicleGroup::query()
             ->orderBy('sort_order')
             ->get(['name', 'slug', 'sort_order']);
 
+        $categories = Category::query()
+            ->with('vehicleGroup:id,slug')
+            ->orderBy('sort_order')
+            ->get(['name', 'slug', 'sort_order', 'group_id'])
+            ->map(fn (Category $category) => [
+                'name' => $category->name,
+                'slug' => $category->slug,
+                'sort_order' => $category->sort_order,
+                'group_slug' => $category->vehicleGroup?->slug,
+            ])
+            ->values();
+
         return Inertia::render('Home', [
+            'groups' => $groups,
             'categories' => $categories,
             'vehicles' => $vehicles,
-            'filters' => $fleetFilter->filtersFromRequest($request),
+            'filters' => $filters,
             'filterAttributes' => $category !== null
                 ? $fleetFilter->filterAttributes($category, $request)
                 : [],
