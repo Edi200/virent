@@ -105,16 +105,6 @@ function formatEur(amount: string | number): string {
 function formatPrice(value: number): string {
     return formatEur(value);
 }
-
-function handleSelectCategory(slug: string | null): void {
-    selectCategory(slug);
-    isMobileFiltersOpen.value = false;
-}
-
-function handleSelectGroup(slug: string | null): void {
-    selectGroup(slug);
-    isMobileFiltersOpen.value = false;
-}
 </script>
 
 <template>
@@ -191,9 +181,9 @@ function handleSelectGroup(slug: string | null): void {
                                     :categories="categories"
                                     :filter-attributes="filterAttributes"
                                     :selected-group="filters.group"
-                                    :select-group="handleSelectGroup"
+                                    :select-group="selectGroup"
                                     :selected-category="filters.category"
-                                    :select-category="handleSelectCategory"
+                                    :select-category="selectCategory"
                                     :search-query="searchQuery"
                                     :price-bounds="priceBounds"
                                     :get-price-range="getPriceRange"
