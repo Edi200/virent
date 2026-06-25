@@ -3,7 +3,10 @@
 namespace App\Services;
 
 use App\Enums\BookingStatus;
+use App\Exceptions\InvalidBookingTransitionException;
 use App\Exceptions\VehicleUnavailableException;
+use App\Mail\BookingCancelledMailable;
+use App\Mail\BookingConfirmedMailable;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Extra;
@@ -11,6 +14,7 @@ use App\Models\Vehicle;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use InvalidArgumentException;
 
 class BookingService
@@ -85,5 +89,26 @@ class BookingService
 
             return $booking->load('extras');
         });
+    }
+
+    public function transitionTo(Booking $booking, BookingStatus $status): Booking
+    {
+        if (! $booking->canTransitionTo($status)) {
+            throw InvalidBookingTransitionException::forBooking($booking, $status);
+        }
+
+        $booking->update(['status' => $status]);
+
+        $booking->load(['vehicle', 'customer.user', 'extras']);
+
+        match ($status) {
+            BookingStatus::Confirmed => Mail::to($booking->customer->user)
+                ->send(new BookingConfirmedMailable($booking)),
+            BookingStatus::Cancelled => Mail::to($booking->customer->user)
+                ->send(new BookingCancelledMailable($booking)),
+            default => null,
+        };
+
+        return $booking->fresh();
     }
 }

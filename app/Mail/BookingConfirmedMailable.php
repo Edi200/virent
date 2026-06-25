@@ -9,7 +9,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class BookingCreatedMailable extends Mailable
+class BookingConfirmedMailable extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -18,14 +18,14 @@ class BookingCreatedMailable extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: __('Booking request received — :reference', ['reference' => $this->booking->reference()]),
+            subject: __('Booking confirmed — :reference', ['reference' => $this->booking->reference()]),
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            markdown: 'mail.booking-created',
+            markdown: 'mail.booking-confirmed',
         );
     }
 }

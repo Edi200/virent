@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
+    CalendarCheck,
     House,
     IdCard,
     Menu,
@@ -23,6 +24,7 @@ import ViRentWordmark from '@/components/ViRentWordmark.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { home, logout } from '@/routes';
+import { index as bookingsIndex } from '@/routes/bookings';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editRentalProfile } from '@/routes/rental-profile';
@@ -47,6 +49,11 @@ const navItems = computed((): NavItem[] => {
             title: 'Rental profile',
             href: editRentalProfile(),
             icon: IdCard,
+        });
+        items.push({
+            title: 'Bookings',
+            href: bookingsIndex(),
+            icon: CalendarCheck,
         });
     }
 

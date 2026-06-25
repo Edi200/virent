@@ -21,6 +21,10 @@ it('allows admin to access fleet and customer resources', function () {
     $this->actingAs($admin)
         ->get('/admin/customers')
         ->assertSuccessful();
+
+    $this->actingAs($admin)
+        ->get('/admin/bookings')
+        ->assertSuccessful();
 });
 
 it('denies customer role access to the admin panel', function () {

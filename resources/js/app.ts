@@ -17,11 +17,13 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Home':
+            case name === 'Booking/Create':
             case name.startsWith('Fleet/'):
-            case name.startsWith('Booking/'):
                 return PublicLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
+            case name === 'Booking/Show':
+            case name.startsWith('Bookings/'):
             case name.startsWith('settings/'):
                 return AuthenticatedLayout;
             default:

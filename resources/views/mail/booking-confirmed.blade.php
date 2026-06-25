@@ -1,7 +1,7 @@
 <x-mail::message>
-# {{ __('Booking request received') }}
+# {{ __('Booking confirmed') }}
 
-{{ __('Thank you for your booking request. We have received your reservation and will be in touch to confirm it.') }}
+{{ __('Great news — your booking has been confirmed. We look forward to seeing you on pick-up day.') }}
 
 **{{ __('Reference') }}:** {{ $booking->reference() }}
 
@@ -13,7 +13,7 @@
 
 **{{ __('Status') }}:** {{ ucfirst($booking->status->value) }}
 
-{{ __('No payment has been taken at this stage. We will contact you to confirm your booking.') }}
+{{ __('Please have your driving licence and any required documents ready for pick-up. We will contact you shortly regarding the deposit.') }}
 
 {{ __('Thanks') }},<br>
 {{ config('app.name') }}

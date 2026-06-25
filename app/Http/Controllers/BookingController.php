@@ -28,6 +28,36 @@ class BookingController extends Controller
         private readonly PricingService $pricingService,
     ) {}
 
+    public function index(Request $request): RedirectResponse|Response
+    {
+        if ($request->user()->isAdmin() || $request->user()->isStaff()) {
+            return redirect()->route('profile.edit');
+        }
+
+        $customer = $request->user()->ensureCustomerRecord();
+
+        $bookings = $customer->bookings()
+            ->with('vehicle')
+            ->latest()
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn (Booking $booking): array => [
+                'id' => $booking->id,
+                'reference' => $booking->reference(),
+                'vehicle' => [
+                    'name' => $booking->vehicle->name,
+                ],
+                'start_date' => $booking->start_date->format('Y-m-d'),
+                'end_date' => $booking->end_date->format('Y-m-d'),
+                'status' => $booking->status->value,
+                'total_price' => $booking->total_price,
+            ]);
+
+        return Inertia::render('Bookings/Index', [
+            'bookings' => $bookings,
+        ]);
+    }
+
     public function create(Vehicle $vehicle): Response
     {
         $this->ensureVehicleAvailable($vehicle);
@@ -121,7 +151,7 @@ class BookingController extends Controller
 
         return Inertia::render('Booking/Show', [
             'booking' => [
-                'reference' => $this->bookingReference($booking),
+                'reference' => $booking->reference(),
                 'status' => $booking->status->value,
                 'start_date' => $booking->start_date->format('Y-m-d'),
                 'end_date' => $booking->end_date->format('Y-m-d'),
@@ -190,10 +220,5 @@ class BookingController extends Controller
         }
 
         return Extra::query()->whereIn('id', $extraIds)->get();
-    }
-
-    private function bookingReference(Booking $booking): string
-    {
-        return 'VR-'.str_pad((string) $booking->id, 6, '0', STR_PAD_LEFT);
     }
 }

@@ -91,4 +91,37 @@ class Booking extends Model
             ->withPivot('price_at_booking')
             ->withCasts(['price_at_booking' => 'decimal:2']);
     }
+
+    public function reference(): string
+    {
+        return 'VR-'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * @return list<BookingStatus>
+     */
+    public function allowedTransitions(): array
+    {
+        return match ($this->status) {
+            BookingStatus::Pending => [
+                BookingStatus::Confirmed,
+                BookingStatus::Cancelled,
+            ],
+            BookingStatus::Confirmed => [
+                BookingStatus::Active,
+                BookingStatus::Cancelled,
+            ],
+            BookingStatus::Active => [
+                BookingStatus::Completed,
+                BookingStatus::Cancelled,
+            ],
+            BookingStatus::Completed,
+            BookingStatus::Cancelled => [],
+        };
+    }
+
+    public function canTransitionTo(BookingStatus $status): bool
+    {
+        return in_array($status, $this->allowedTransitions(), true);
+    }
 }
