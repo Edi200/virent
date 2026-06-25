@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { LogIn, LogOut, Menu, User, UserPlus } from '@lucide/vue';
+import { CalendarCheck, LogIn, LogOut, Menu, User, UserPlus } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import RentalProfileModal from '@/components/RentalProfileModal.vue';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import ViRentWordmark from '@/components/ViRentWordmark.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { login, logout, register } from '@/routes';
+import { index as bookingsIndex } from '@/routes/bookings';
 import { edit as profileEdit } from '@/routes/profile';
 import type { NavItem } from '@/types';
 
@@ -24,6 +25,12 @@ const user = computed(() => page.props.auth?.user ?? null);
 const showRentalProfileModal = ref(false);
 const isMobileNavOpen = ref(false);
 const { isCurrentOrParentUrl } = useCurrentUrl();
+
+const bookingsNavItem: NavItem = {
+    title: 'Bookings',
+    href: bookingsIndex(),
+    icon: CalendarCheck,
+};
 
 const authenticatedNavItems: NavItem[] = [
     {
@@ -82,6 +89,29 @@ onUnmounted(() => {
                 <ViRentWordmark class="text-2xl sm:text-3xl" />
 
                 <nav class="hidden items-center gap-1 md:flex">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        :class="[
+                            'h-9',
+                            {
+                                'bg-primary/10 text-primary dark:bg-primary/15':
+                                    isCurrentOrParentUrl(bookingsNavItem.href),
+                            },
+                        ]"
+                        as-child
+                    >
+                        <Link
+                            :href="bookingsNavItem.href"
+                            class="inline-flex items-center gap-2"
+                        >
+                            <component
+                                :is="bookingsNavItem.icon"
+                                class="size-4 shrink-0"
+                            />
+                            {{ bookingsNavItem.title }}
+                        </Link>
+                    </Button>
                     <template v-if="user">
                         <Button
                             v-for="item in authenticatedNavItems"
@@ -174,6 +204,31 @@ onUnmounted(() => {
                             </SheetTitle>
                         </SheetHeader>
                         <nav class="flex flex-col gap-1">
+                            <Button
+                                variant="ghost"
+                                :class="[
+                                    'h-10 justify-start',
+                                    {
+                                        'bg-primary/10 text-primary dark:bg-primary/15':
+                                            isCurrentOrParentUrl(
+                                                bookingsNavItem.href,
+                                            ),
+                                    },
+                                ]"
+                                as-child
+                            >
+                                <Link
+                                    :href="bookingsNavItem.href"
+                                    class="inline-flex items-center gap-2"
+                                    @click="closeMobileNav"
+                                >
+                                    <component
+                                        :is="bookingsNavItem.icon"
+                                        class="size-4 shrink-0"
+                                    />
+                                    {{ bookingsNavItem.title }}
+                                </Link>
+                            </Button>
                             <template v-if="user">
                                 <Button
                                     v-for="item in authenticatedNavItems"

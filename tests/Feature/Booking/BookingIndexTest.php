@@ -94,7 +94,24 @@ it('paginates bookings when more than ten exist', function () {
         );
 });
 
-it('redirects guests from the bookings index to login', function () {
+it('redirects guests from the bookings index to login with intended url', function () {
     $this->get(route('bookings.index'))
         ->assertRedirect(route('login'));
+
+    expect(session('url.intended'))->toBe(route('bookings.index'));
+});
+
+it('redirects guests to bookings index after login when that was the intended url', function () {
+    $user = indexCustomer();
+
+    $this->get(route('bookings.index'))
+        ->assertRedirect(route('login'));
+
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ])
+        ->assertRedirect(route('bookings.index', absolute: false));
+
+    $this->assertAuthenticated();
 });
