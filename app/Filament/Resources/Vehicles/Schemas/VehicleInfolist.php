@@ -23,8 +23,7 @@ class VehicleInfolist
                         TextEntry::make('category.name')
                             ->label('Category'),
                         TextEntry::make('name'),
-                        TextEntry::make('year')
-                            ->numeric(),
+                        TextEntry::make('year'),
                         TextEntry::make('status')
                             ->badge(),
                     ]),
@@ -77,16 +76,6 @@ class VehicleInfolist
                                     ->square(),
                             ]),
                     ]),
-                TextEntry::make('created_at')
-                    ->dateTime()
-                    ->placeholder('-')
-                    ->size('xs')
-                    ->color('gray'),
-                TextEntry::make('updated_at')
-                    ->dateTime()
-                    ->placeholder('-')
-                    ->size('xs')
-                    ->color('gray'),
             ]);
     }
 }

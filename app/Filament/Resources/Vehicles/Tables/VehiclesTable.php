@@ -29,7 +29,6 @@ class VehiclesTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('year')
-                    ->numeric()
                     ->sortable(),
                 TextColumn::make('daily_rate')
                     ->money('EUR')

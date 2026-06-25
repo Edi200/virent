@@ -26,16 +26,6 @@ class CategoryInfolist
                         TextEntry::make('sort_order')
                             ->numeric(),
                     ]),
-                TextEntry::make('created_at')
-                    ->dateTime()
-                    ->placeholder('-')
-                    ->size('xs')
-                    ->color('gray'),
-                TextEntry::make('updated_at')
-                    ->dateTime()
-                    ->placeholder('-')
-                    ->size('xs')
-                    ->color('gray'),
             ]);
     }
 }
