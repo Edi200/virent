@@ -309,6 +309,54 @@ it('returns 404 for an unknown vehicle slug', function () {
         ->assertNotFound();
 });
 
+it('passes through a safe back query param for fleet show', function () {
+    $vehicle = Vehicle::query()
+        ->where('name', 'Toyota Corolla')
+        ->firstOrFail();
+
+    $back = '/?category=car&search=Toyota&page=2';
+
+    $this->get(route('fleet.show', ['vehicle' => $vehicle->slug, 'back' => $back]))
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Fleet/Show')
+            ->where('back_url', $back)
+        );
+});
+
+it('drops malicious back query params and falls back to null', function () {
+    $vehicle = Vehicle::query()
+        ->where('name', 'Toyota Corolla')
+        ->firstOrFail();
+
+    $this->get(route('fleet.show', ['vehicle' => $vehicle->slug, 'back' => '//evil.com']))
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Fleet/Show')
+            ->where('back_url', null)
+        );
+
+    $this->get(route('fleet.show', ['vehicle' => $vehicle->slug, 'back' => 'https://evil.com']))
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Fleet/Show')
+            ->where('back_url', null)
+        );
+});
+
+it('returns null back_url when no back query param is provided', function () {
+    $vehicle = Vehicle::query()
+        ->where('name', 'Toyota Corolla')
+        ->firstOrFail();
+
+    $this->get(route('fleet.show', ['vehicle' => $vehicle->slug]))
+        ->assertSuccessful()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Fleet/Show')
+            ->where('back_url', null)
+        );
+});
+
 it('returns 404 when showing a non-available vehicle by slug', function () {
     $vehicle = Vehicle::query()->firstOrFail();
     $vehicle->update(['status' => VehicleStatus::Rented]);

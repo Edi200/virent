@@ -3,7 +3,9 @@
 use App\Enums\BookingStatus;
 use App\Mail\BookingCreatedMailable;
 use App\Models\Booking;
+use App\Models\Category;
 use App\Models\Extra;
+use App\Models\MaintenanceBlock;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\PricingService;
@@ -114,6 +116,55 @@ it('returns available false in price preview when dates conflict', function () {
         ])
         ->assertSuccessful()
         ->assertJson(['available' => false]);
+});
+
+it('returns public unavailable date ranges with exact shape', function () {
+    $category = Category::factory()->create(['buffer_hours' => 24]);
+    $vehicle = Vehicle::factory()->for($category)->create();
+
+    $start = now()->addDays(10)->startOfDay();
+
+    Booking::factory()->pending()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => $start->toDateString(),
+        'end_date' => $start->copy()->addDays(2)->toDateString(),
+    ]);
+
+    Booking::factory()->completed()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => $start->copy()->addDays(5)->toDateString(),
+        'end_date' => $start->copy()->addDays(7)->toDateString(),
+    ]);
+
+    MaintenanceBlock::factory()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => $start->copy()->addDays(9)->toDateString(),
+        'end_date' => $start->copy()->addDays(10)->toDateString(),
+    ]);
+
+    $response = $this->getJson(route('fleet.unavailable-dates', $vehicle));
+
+    $response->assertSuccessful();
+
+    /** @var list<array{start_date: string, end_date: string}> $payload */
+    $payload = $response->json();
+
+    expect($payload)->toBeArray()->toHaveCount(2);
+
+    foreach ($payload as $range) {
+        expect($range)->toHaveKeys(['start_date', 'end_date'])
+            ->and($range)->toHaveCount(2)
+            ->and($range['start_date'])->toBeString()
+            ->and($range['end_date'])->toBeString();
+    }
+
+    expect($payload)->toContain([
+        'start_date' => $start->toDateString(),
+        'end_date' => $start->copy()->addDays(2)->toDateString(),
+    ], [
+        'start_date' => $start->copy()->addDays(9)->toDateString(),
+        'end_date' => $start->copy()->addDays(10)->toDateString(),
+    ]);
 });
 
 it('creates a pending booking, sends email, and redirects to confirmation', function () {

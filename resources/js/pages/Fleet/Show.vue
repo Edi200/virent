@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ArrowLeft, Car } from '@lucide/vue';
-import { ref, toRef } from 'vue';
+import { computed, ref, toRef } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -44,6 +44,7 @@ type VehicleShow = {
 
 const props = defineProps<{
     vehicle: VehicleShow;
+    back_url: string | null;
 }>();
 
 const galleryRef = ref<HTMLElement | null>(null);
@@ -62,14 +63,22 @@ function formatEur(amount: string | number): string {
     return eurFormatter.format(Number(amount));
 }
 
-function handleBackClick(): void {
-    if (window.history.length > 1) {
-        window.history.back();
+function isSafeInternalPath(value: string): boolean {
+    return value.startsWith('/')
+        && !value.startsWith('//')
+        && !value.includes('://');
+}
 
-        return;
+const backHref = computed(() => {
+    if (props.back_url === null || !isSafeInternalPath(props.back_url)) {
+        return home();
     }
 
-    router.visit(home());
+    return props.back_url;
+});
+
+function handleBackClick(): void {
+    router.visit(backHref.value);
 }
 </script>
 

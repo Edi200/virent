@@ -211,3 +211,92 @@ it('blocks pending and active bookings but not completed ones', function () {
         Carbon::parse('2026-07-15'),
     ))->toBeTrue();
 });
+
+it('returns blocked ranges from blocking bookings and maintenance with buffer and matches availability checks', function () {
+    $vehicle = availabilityVehicle(bufferHours: 24);
+
+    Booking::factory()->pending()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => '2026-08-01',
+        'end_date' => '2026-08-03',
+    ]);
+
+    Booking::factory()->confirmed()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => '2026-08-06',
+        'end_date' => '2026-08-08',
+    ]);
+
+    Booking::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => '2026-08-11',
+        'end_date' => '2026-08-13',
+    ]);
+
+    Booking::factory()->completed()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => '2026-08-16',
+        'end_date' => '2026-08-18',
+    ]);
+
+    Booking::factory()->cancelled()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => '2026-08-20',
+        'end_date' => '2026-08-22',
+    ]);
+
+    MaintenanceBlock::factory()->create([
+        'vehicle_id' => $vehicle->id,
+        'start_date' => '2026-08-24',
+        'end_date' => '2026-08-25',
+    ]);
+
+    $ranges = collect($vehicle->blockedDateRanges(
+        Carbon::parse('2026-07-25'),
+        Carbon::parse('2026-08-30'),
+    ));
+
+    expect($ranges)->toHaveCount(4);
+
+    $serializedRanges = $ranges
+        ->map(fn (array $range): array => [
+            'start' => $range['start']->toDateString(),
+            'end' => $range['end']->toDateString(),
+        ])
+        ->values()
+        ->all();
+
+    expect($serializedRanges)->toContain(
+        ['start' => '2026-08-01', 'end' => '2026-08-04'],
+        ['start' => '2026-08-06', 'end' => '2026-08-09'],
+        ['start' => '2026-08-11', 'end' => '2026-08-14'],
+        ['start' => '2026-08-24', 'end' => '2026-08-26'],
+    )
+        ->not->toContain(
+            ['start' => '2026-08-16', 'end' => '2026-08-19'],
+            ['start' => '2026-08-20', 'end' => '2026-08-23'],
+        );
+
+    $isBlockedByRanges = function (Carbon $start, Carbon $end) use ($ranges): bool {
+        return $ranges->contains(
+            fn (array $range): bool => ! ($end <= $range['start']) && ! ($range['end'] <= $start),
+        );
+    };
+
+    $samples = [
+        ['start' => '2026-08-02', 'end' => '2026-08-03'],
+        ['start' => '2026-08-08', 'end' => '2026-08-09'],
+        ['start' => '2026-08-24', 'end' => '2026-08-25'],
+        ['start' => '2026-07-28', 'end' => '2026-07-29'],
+        ['start' => '2026-08-14', 'end' => '2026-08-15'],
+        ['start' => '2026-08-26', 'end' => '2026-08-27'],
+    ];
+
+    foreach ($samples as $sample) {
+        $sampleStart = Carbon::parse($sample['start'])->startOfDay();
+        $sampleEnd = Carbon::parse($sample['end'])->startOfDay();
+
+        expect($vehicle->isAvailableBetween($sampleStart, $sampleEnd))
+            ->toBe(! $isBlockedByRanges($sampleStart, $sampleEnd));
+    }
+});

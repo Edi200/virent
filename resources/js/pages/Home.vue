@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Car, SlidersHorizontal } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import FleetFilterPanel from '@/components/FleetFilterPanel.vue';
 import FleetPagination from '@/components/FleetPagination.vue';
 import { Badge } from '@/components/ui/badge';
@@ -74,6 +74,10 @@ const props = defineProps<{
 }>();
 
 const isMobileFiltersOpen = ref(false);
+const page = usePage();
+const currentListingUrl = computed(() =>
+    page.url.startsWith('/') ? page.url : `/${page.url}`,
+);
 
 const {
     searchQuery,
@@ -104,6 +108,13 @@ function formatEur(amount: string | number): string {
 
 function formatPrice(value: number): string {
     return formatEur(value);
+}
+
+function vehicleShowHref(vehicleSlug: string): string {
+    return fleetShow.url(
+        { vehicle: vehicleSlug },
+        { query: { back: currentListingUrl.value } },
+    );
 }
 </script>
 
@@ -216,7 +227,7 @@ function formatPrice(value: number): string {
                         <Link
                             v-for="vehicle in vehicles.data"
                             :key="vehicle.slug"
-                            :href="fleetShow({ vehicle: vehicle.slug })"
+                            :href="vehicleShowHref(vehicle.slug)"
                             class="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
                             <Card

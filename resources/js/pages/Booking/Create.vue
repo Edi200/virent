@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { Head, Link, useForm, useHttp } from '@inertiajs/vue3';
 import { AlertTriangle, ArrowLeft } from '@lucide/vue';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import type { DateRange, DateValue } from 'reka-ui';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { getLocalTimeZone, parseDate, today as dateToday } from '@internationalized/date';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RangeCalendar } from '@/components/ui/range-calendar';
 import { store as bookStore } from '@/routes/fleet/book';
-import { pricePreview, show as fleetShow } from '@/routes/fleet';
+import { pricePreview, show as fleetShow, unavailableDates } from '@/routes/fleet';
 
 type VehicleSummary = {
     slug: string;
@@ -44,14 +46,19 @@ type PricePreviewResult = {
     available: boolean;
 };
 
+type UnavailableRange = {
+    start_date: string;
+    end_date: string;
+};
+
 const props = defineProps<{
     vehicle: VehicleSummary;
     extras: ExtraOption[];
 }>();
 
 const DEBOUNCE_MS = 350;
-
-const today = new Date().toISOString().slice(0, 10);
+const localTimeZone = getLocalTimeZone();
+const minBookingDate = dateToday(localTimeZone);
 
 const form = useForm({
     start_date: '',
@@ -70,6 +77,10 @@ const previewHttp = useHttp({
 const preview = ref<PricePreviewResult | null>(null);
 const previewLoading = ref(false);
 const previewError = ref<string | null>(null);
+const unavailableDatesLoading = ref(false);
+const unavailableDatesError = ref<string | null>(null);
+const unavailableDateSet = ref<Set<string>>(new Set());
+const selectedRange = ref<DateRange | undefined>(undefined);
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let previewRequestId = 0;
@@ -127,6 +138,90 @@ function toggleExtra(extraId: number, checked: boolean | 'indeterminate'): void 
     }
 
     form.extras = form.extras.filter((id) => id !== extraId);
+}
+
+function dateValueToIso(value: DateValue): string {
+    return value.toString();
+}
+
+function parseIsoToDateValue(value: string): DateValue {
+    return parseDate(value);
+}
+
+function expandUnavailableDates(ranges: UnavailableRange[]): Set<string> {
+    const expanded = new Set<string>();
+
+    ranges.forEach((range) => {
+        const start = new Date(`${range.start_date}T00:00:00Z`);
+        const end = new Date(`${range.end_date}T00:00:00Z`);
+
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+            return;
+        }
+
+        const cursor = new Date(start);
+
+        while (cursor <= end) {
+            expanded.add(cursor.toISOString().slice(0, 10));
+            cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+    });
+
+    return expanded;
+}
+
+function isDateUnavailable(date: DateValue): boolean {
+    return unavailableDateSet.value.has(dateValueToIso(date));
+}
+
+function syncRangeFromForm(): void {
+    if (form.start_date === '' || form.end_date === '') {
+        selectedRange.value = undefined;
+
+        return;
+    }
+
+    selectedRange.value = {
+        start: parseIsoToDateValue(form.start_date),
+        end: parseIsoToDateValue(form.end_date),
+    };
+}
+
+function syncFormFromRange(range: DateRange | undefined): void {
+    if (range?.start === undefined || range.end === undefined) {
+        form.start_date = '';
+        form.end_date = '';
+
+        return;
+    }
+
+    form.start_date = dateValueToIso(range.start);
+    form.end_date = dateValueToIso(range.end);
+}
+
+async function fetchUnavailableDates(): Promise<void> {
+    unavailableDatesLoading.value = true;
+    unavailableDatesError.value = null;
+
+    try {
+        const response = await fetch(unavailableDates.url({ vehicle: props.vehicle.slug }), {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Unavailable dates request failed');
+        }
+
+        const ranges = (await response.json()) as UnavailableRange[];
+        unavailableDateSet.value = expandUnavailableDates(ranges);
+    } catch {
+        unavailableDateSet.value = new Set();
+        unavailableDatesError.value = 'Unable to load unavailable dates. You can still pick dates manually.';
+    } finally {
+        unavailableDatesLoading.value = false;
+    }
 }
 
 async function fetchPreview(): Promise<void> {
@@ -196,6 +291,15 @@ watch(
     { deep: true },
 );
 
+watch(selectedRange, (range) => {
+    syncFormFromRange(range);
+});
+
+onMounted(() => {
+    syncRangeFromForm();
+    void fetchUnavailableDates();
+});
+
 onUnmounted(() => {
     if (debounceTimer !== null) {
         clearTimeout(debounceTimer);
@@ -261,18 +365,42 @@ function submit(): void {
                                     Return date is the day you bring the
                                     vehicle back (not charged).
                                 </p>
+                                <p class="text-sm text-muted-foreground">
+                                    Blocked dates are shown in red and cannot be selected.
+                                </p>
+                            </div>
+
+                            <div class="space-y-3">
+                                <Label>Pick-up and return dates</Label>
+                                <RangeCalendar
+                                    v-model="selectedRange"
+                                    :number-of-months="2"
+                                    :min-value="minBookingDate"
+                                    :is-date-unavailable="isDateUnavailable"
+                                    class="w-full rounded-md border"
+                                />
+                                <p
+                                    v-if="unavailableDatesLoading"
+                                    class="text-sm text-muted-foreground"
+                                >
+                                    Loading unavailable dates...
+                                </p>
+                                <p
+                                    v-else-if="unavailableDatesError"
+                                    class="text-sm text-destructive"
+                                >
+                                    {{ unavailableDatesError }}
+                                </p>
                             </div>
 
                             <div class="grid gap-4 sm:grid-cols-2">
-                                <div class="space-y-2">
-                                    <Label for="start_date">Pick-up date</Label>
-                                    <Input
-                                        id="start_date"
-                                        v-model="form.start_date"
-                                        type="date"
-                                        :min="today"
-                                        required
-                                    />
+                                <div class="space-y-1">
+                                    <p class="text-sm font-medium text-foreground">
+                                        Pick-up date
+                                    </p>
+                                    <p class="text-sm text-muted-foreground">
+                                        {{ form.start_date || 'Not selected' }}
+                                    </p>
                                     <p
                                         v-if="form.errors.start_date"
                                         class="text-sm text-destructive"
@@ -281,15 +409,13 @@ function submit(): void {
                                     </p>
                                 </div>
 
-                                <div class="space-y-2">
-                                    <Label for="end_date">Return date</Label>
-                                    <Input
-                                        id="end_date"
-                                        v-model="form.end_date"
-                                        type="date"
-                                        :min="form.start_date || today"
-                                        required
-                                    />
+                                <div class="space-y-1">
+                                    <p class="text-sm font-medium text-foreground">
+                                        Return date
+                                    </p>
+                                    <p class="text-sm text-muted-foreground">
+                                        {{ form.end_date || 'Not selected' }}
+                                    </p>
                                     <p
                                         v-if="form.errors.end_date"
                                         class="text-sm text-destructive"

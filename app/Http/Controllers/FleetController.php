@@ -55,7 +55,7 @@ class FleetController extends Controller
         ]);
     }
 
-    public function show(Vehicle $vehicle): Response
+    public function show(Request $request, Vehicle $vehicle): Response
     {
         abort_unless($vehicle->status === VehicleStatus::Available, 404);
 
@@ -63,7 +63,29 @@ class FleetController extends Controller
 
         return Inertia::render('Fleet/Show', [
             'vehicle' => $this->vehicleShowProps($vehicle),
+            'back_url' => $this->validatedBackUrl($request->query('back')),
         ]);
+    }
+
+    private function validatedBackUrl(mixed $backUrl): ?string
+    {
+        if (! is_string($backUrl)) {
+            return null;
+        }
+
+        if (! str_starts_with($backUrl, '/')) {
+            return null;
+        }
+
+        if (str_starts_with($backUrl, '//')) {
+            return null;
+        }
+
+        if (str_contains($backUrl, '://')) {
+            return null;
+        }
+
+        return $backUrl;
     }
 
     private function resolveCategory(?string $slug): ?Category
