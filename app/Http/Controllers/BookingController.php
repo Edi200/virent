@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\VehicleStatus;
+use App\Events\VehicleAvailabilityChanged;
 use App\Exceptions\VehicleUnavailableException;
 use App\Mail\BookingCreatedMailable;
 use App\Models\Booking;
+use App\Models\BookingHold;
 use App\Models\Extra;
 use App\Models\Vehicle;
 use App\Services\BookingService;
@@ -13,6 +15,7 @@ use App\Services\PricingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
@@ -68,6 +71,7 @@ class BookingController extends Controller
 
         return Inertia::render('Booking/Create', [
             'vehicle' => [
+                'id' => $vehicle->id,
                 'slug' => $vehicle->slug,
                 'name' => $vehicle->name,
                 'daily_rate' => $vehicle->daily_rate,
@@ -131,6 +135,59 @@ class BookingController extends Controller
             ...$pricing,
             'available' => $vehicle->isAvailableBetween($start, $end),
         ]);
+    }
+
+    public function storeHold(Request $request, Vehicle $vehicle): JsonResponse
+    {
+        $this->ensureVehicleAvailable($vehicle);
+
+        $validated = $this->validateDateRangeInput($request);
+
+        $start = Carbon::parse($validated['start_date'])->startOfDay();
+        $end = Carbon::parse($validated['end_date'])->startOfDay();
+
+        if (! $vehicle->isAvailableBetween($start, $end, $request->user()->id)) {
+            return response()->json([
+                'message' => __('The given data was invalid.'),
+                'errors' => [
+                    'dates' => [__('This vehicle is not available for the selected dates.')],
+                ],
+            ], 422);
+        }
+
+        $hold = BookingHold::query()->updateOrCreate(
+            [
+                'vehicle_id' => $vehicle->id,
+                'user_id' => $request->user()->id,
+            ],
+            [
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'expires_at' => now()->addMinutes(10),
+            ],
+        );
+
+        VehicleAvailabilityChanged::dispatch($vehicle->id);
+
+        return response()->json([
+            'start_date' => $hold->start_date->toDateString(),
+            'end_date' => $hold->end_date->toDateString(),
+            'expires_at' => $hold->expires_at->toIso8601String(),
+        ]);
+    }
+
+    public function destroyHold(Request $request, Vehicle $vehicle): HttpResponse
+    {
+        $this->ensureVehicleAvailable($vehicle);
+
+        BookingHold::query()
+            ->where('vehicle_id', $vehicle->id)
+            ->where('user_id', $request->user()->id)
+            ->delete();
+
+        VehicleAvailabilityChanged::dispatch($vehicle->id);
+
+        return response()->noContent();
     }
 
     public function store(Request $request, Vehicle $vehicle): RedirectResponse
@@ -199,6 +256,20 @@ class BookingController extends Controller
     private function ensureVehicleAvailable(Vehicle $vehicle): void
     {
         abort_unless($vehicle->status === VehicleStatus::Available, 404);
+    }
+
+    /**
+     * @return array{start_date: string, end_date: string}
+     */
+    private function validateDateRangeInput(Request $request): array
+    {
+        /** @var array{start_date: string, end_date: string} $validated */
+        $validated = $request->validate([
+            'start_date' => ['required', 'date', 'after_or_equal:today'],
+            'end_date' => ['required', 'date', 'after:start_date'],
+        ]);
+
+        return $validated;
     }
 
     /**

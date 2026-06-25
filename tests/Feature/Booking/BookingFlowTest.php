@@ -58,6 +58,7 @@ it('allows an authenticated customer to view the booking form', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Booking/Create')
             ->has('vehicle', fn (Assert $vehiclePage) => $vehiclePage
+                ->where('id', $vehicle->id)
                 ->where('slug', $vehicle->slug)
                 ->where('name', $vehicle->name)
                 ->etc()

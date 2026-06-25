@@ -1,8 +1,10 @@
 <?php
 
 use App\Enums\BookingStatus;
+use App\Events\VehicleAvailabilityChanged;
 use App\Exceptions\VehicleUnavailableException;
 use App\Models\Booking;
+use App\Models\BookingHold;
 use App\Models\Customer;
 use App\Models\Extra;
 use App\Models\User;
@@ -11,6 +13,7 @@ use App\Services\BookingService;
 use App\Services\PricingService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Event;
 
 function bookingCustomer(): Customer
 {
@@ -171,4 +174,46 @@ it('allows operator rental when the vehicle supports it', function () {
 
     expect($booking->with_operator)->toBeTrue()
         ->and((float) $booking->total_price)->toBeGreaterThan(200.0);
+});
+
+it('removes the customers hold and dispatches VehicleAvailabilityChanged after creating a booking', function () {
+    Event::fake([VehicleAvailabilityChanged::class]);
+
+    $vehicle = Vehicle::factory()->create([
+        'daily_rate' => 50,
+        'weekly_rate' => null,
+        'monthly_rate' => null,
+        'deposit_amount' => 500,
+    ]);
+
+    $customer = bookingCustomer();
+    $start = Carbon::parse('2026-06-01');
+    $end = Carbon::parse('2026-06-04');
+
+    BookingHold::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $customer->user_id,
+        'start_date' => $start->toDateString(),
+        'end_date' => $end->toDateString(),
+    ]);
+
+    $booking = $this->bookingService->create(
+        $vehicle,
+        $customer,
+        $start,
+        $end,
+        false,
+        collect(),
+    );
+
+    expect($booking)->toBeInstanceOf(Booking::class)
+        ->and(BookingHold::query()
+            ->where('vehicle_id', $vehicle->id)
+            ->where('user_id', $customer->user_id)
+            ->exists())->toBeFalse();
+
+    Event::assertDispatched(
+        VehicleAvailabilityChanged::class,
+        fn (VehicleAvailabilityChanged $event): bool => $event->vehicleId === $vehicle->id,
+    );
 });

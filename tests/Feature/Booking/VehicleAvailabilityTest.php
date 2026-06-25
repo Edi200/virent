@@ -3,8 +3,10 @@
 use App\Enums\BookingStatus;
 use App\Enums\VehicleStatus;
 use App\Models\Booking;
+use App\Models\BookingHold;
 use App\Models\Category;
 use App\Models\MaintenanceBlock;
+use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Support\Carbon;
 
@@ -299,4 +301,100 @@ it('returns blocked ranges from blocking bookings and maintenance with buffer an
         expect($vehicle->isAvailableBetween($sampleStart, $sampleEnd))
             ->toBe(! $isBlockedByRanges($sampleStart, $sampleEnd));
     }
+});
+
+it('includes active booking holds from other users in blocked date ranges', function () {
+    $vehicle = availabilityVehicle();
+    $otherUser = User::factory()->create();
+
+    BookingHold::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $otherUser->id,
+        'start_date' => '2026-06-05',
+        'end_date' => '2026-06-10',
+    ]);
+
+    $ranges = $vehicle->blockedDateRanges(
+        Carbon::parse('2026-06-01'),
+        Carbon::parse('2026-06-15'),
+    );
+
+    expect($ranges)->toHaveCount(1)
+        ->and($ranges[0]['start']->toDateString())->toBe('2026-06-05')
+        ->and($ranges[0]['end']->toDateString())->toBe('2026-06-10');
+});
+
+it('excludes the requesting users own active hold when excludeUserId is passed', function () {
+    $vehicle = availabilityVehicle();
+    $user = User::factory()->create();
+
+    BookingHold::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'start_date' => '2026-06-05',
+        'end_date' => '2026-06-10',
+    ]);
+
+    $rangesWithoutExclusion = $vehicle->blockedDateRanges(
+        Carbon::parse('2026-06-01'),
+        Carbon::parse('2026-06-15'),
+    );
+
+    $rangesWithExclusion = $vehicle->blockedDateRanges(
+        Carbon::parse('2026-06-01'),
+        Carbon::parse('2026-06-15'),
+        $user->id,
+    );
+
+    expect($rangesWithoutExclusion)->toHaveCount(1)
+        ->and($rangesWithExclusion)->toBeEmpty();
+});
+
+it('excludes expired booking holds from blocked date ranges', function () {
+    $vehicle = availabilityVehicle();
+    $otherUser = User::factory()->create();
+
+    BookingHold::factory()->expired()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $otherUser->id,
+        'start_date' => '2026-06-05',
+        'end_date' => '2026-06-10',
+    ]);
+
+    $ranges = $vehicle->blockedDateRanges(
+        Carbon::parse('2026-06-01'),
+        Carbon::parse('2026-06-15'),
+    );
+
+    expect($ranges)->toBeEmpty();
+});
+
+it('hard-blocks availability when another user has an active hold on overlapping dates', function () {
+    $vehicle = availabilityVehicle();
+    $otherUser = User::factory()->create();
+    $requestingUser = User::factory()->create();
+
+    BookingHold::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $otherUser->id,
+        'start_date' => '2026-06-05',
+        'end_date' => '2026-06-10',
+    ]);
+
+    expect($vehicle->isAvailableBetween(
+        Carbon::parse('2026-06-05'),
+        Carbon::parse('2026-06-10'),
+    ))->toBeFalse();
+
+    expect($vehicle->isAvailableBetween(
+        Carbon::parse('2026-06-05'),
+        Carbon::parse('2026-06-10'),
+        $requestingUser->id,
+    ))->toBeFalse();
+
+    expect($vehicle->isAvailableBetween(
+        Carbon::parse('2026-06-05'),
+        Carbon::parse('2026-06-10'),
+        $otherUser->id,
+    ))->toBeTrue();
 });

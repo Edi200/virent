@@ -18,6 +18,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/fleet/{vehicle:slug}/book', [BookingController::class, 'create'])->name('fleet.book');
     Route::post('/fleet/{vehicle:slug}/book', [BookingController::class, 'store'])->name('fleet.book.store');
     Route::post('/fleet/{vehicle:slug}/price-preview', [BookingController::class, 'pricePreview'])->name('fleet.price-preview');
+    Route::post('/fleet/{vehicle:slug}/hold', [BookingController::class, 'storeHold'])->name('fleet.hold.store');
+    Route::delete('/fleet/{vehicle:slug}/hold', [BookingController::class, 'destroyHold'])->name('fleet.hold.destroy');
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
     Route::get('/bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');
 });

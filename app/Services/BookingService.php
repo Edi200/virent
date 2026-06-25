@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Enums\BookingStatus;
+use App\Events\VehicleAvailabilityChanged;
 use App\Exceptions\InvalidBookingTransitionException;
 use App\Exceptions\VehicleUnavailableException;
 use App\Mail\BookingCancelledMailable;
 use App\Mail\BookingConfirmedMailable;
 use App\Models\Booking;
+use App\Models\BookingHold;
 use App\Models\Customer;
 use App\Models\Extra;
 use App\Models\Vehicle;
@@ -43,7 +45,7 @@ class BookingService
             throw new InvalidArgumentException('This vehicle does not support operator rental.');
         }
 
-        return DB::transaction(function () use ($vehicle, $customer, $start, $end, $withOperator, $extras, $notes): Booking {
+        $booking = DB::transaction(function () use ($vehicle, $customer, $start, $end, $withOperator, $extras, $notes): Booking {
             /** @var Vehicle $lockedVehicle */
             $lockedVehicle = Vehicle::query()
                 ->whereKey($vehicle->id)
@@ -52,7 +54,7 @@ class BookingService
 
             $lockedVehicle->loadMissing('category');
 
-            if (! $lockedVehicle->isAvailableBetween($start, $end)) {
+            if (! $lockedVehicle->isAvailableBetween($start, $end, $customer->user_id)) {
                 throw VehicleUnavailableException::forVehicle(
                     $lockedVehicle->id,
                     $start->toDateString(),
@@ -87,8 +89,17 @@ class BookingService
                 ]);
             }
 
+            BookingHold::query()
+                ->where('vehicle_id', $lockedVehicle->id)
+                ->where('user_id', $customer->user_id)
+                ->delete();
+
             return $booking->load('extras');
         });
+
+        VehicleAvailabilityChanged::dispatch($vehicle->id);
+
+        return $booking;
     }
 
     public function transitionTo(Booking $booking, BookingStatus $status): Booking

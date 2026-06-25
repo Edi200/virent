@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm, useHttp } from '@inertiajs/vue3';
+import { useEchoPublic } from '@laravel/echo-vue';
 import { AlertTriangle, ArrowLeft } from '@lucide/vue';
 import type { DateValue } from '@internationalized/date';
 import type { DateRange, RangeCalendarRootProps } from 'reka-ui';
@@ -12,9 +13,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RangeCalendar } from '@/components/ui/range-calendar';
 import { store as bookStore } from '@/routes/fleet/book';
+import { destroy as holdDestroy, store as holdStore } from '@/routes/fleet/hold';
 import { pricePreview, show as fleetShow, unavailableDates } from '@/routes/fleet';
 
 type VehicleSummary = {
+    id: number;
     slug: string;
     name: string;
     daily_rate: string;
@@ -75,9 +78,15 @@ const previewHttp = useHttp({
     extras: [] as number[],
 });
 
+const holdHttp = useHttp({
+    start_date: '',
+    end_date: '',
+});
+
 const preview = ref<PricePreviewResult | null>(null);
 const previewLoading = ref(false);
 const previewError = ref<string | null>(null);
+const liveConflictWarning = ref(false);
 const unavailableDatesLoading = ref(false);
 const unavailableDatesError = ref<string | null>(null);
 const unavailableDateSet = ref<Set<string>>(new Set());
@@ -119,7 +128,7 @@ const datesComplete = computed(
         && form.end_date > form.start_date,
 );
 
-const isUnavailable = computed(
+const isPreviewUnavailable = computed(
     () => preview.value !== null && preview.value.available === false,
 );
 
@@ -129,6 +138,7 @@ const canSubmit = computed(
         && !previewLoading.value
         && preview.value !== null
         && preview.value.available
+        && !liveConflictWarning.value
         && !form.processing,
 );
 
@@ -178,6 +188,34 @@ function isDateUnavailable(date: DateValue): boolean {
     return unavailableDateSet.value.has(dateValueToIso(date));
 }
 
+function isSelectedRangeBlocked(start: string, end: string): boolean {
+    const cursor = new Date(`${start}T00:00:00Z`);
+    const endDate = new Date(`${end}T00:00:00Z`);
+
+    if (Number.isNaN(cursor.getTime()) || Number.isNaN(endDate.getTime())) {
+        return false;
+    }
+
+    while (cursor < endDate) {
+        if (unavailableDateSet.value.has(cursor.toISOString().slice(0, 10))) {
+            return true;
+        }
+
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    return false;
+}
+
+function clearDateSelection(): void {
+    selectedRange.value = undefined;
+    form.start_date = '';
+    form.end_date = '';
+    preview.value = null;
+    previewError.value = null;
+    previewRequestId++;
+}
+
 function syncFormFromRange(range: SelectedRange): void {
     if (range?.start === undefined || range.end === undefined) {
         form.start_date = '';
@@ -191,11 +229,16 @@ function syncFormFromRange(range: SelectedRange): void {
 }
 
 function handleRangeUpdate(range: SelectedRange): void {
+    liveConflictWarning.value = false;
     selectedRange.value = range;
     syncFormFromRange(range);
 }
 
-async function fetchUnavailableDates(): Promise<void> {
+async function fetchUnavailableDates(options?: {
+    checkSelectionConflict?: boolean;
+}): Promise<void> {
+    const hadCompleteSelection = datesComplete.value;
+
     unavailableDatesLoading.value = true;
     unavailableDatesError.value = null;
 
@@ -212,12 +255,49 @@ async function fetchUnavailableDates(): Promise<void> {
 
         const ranges = (await response.json()) as UnavailableRange[];
         unavailableDateSet.value = expandUnavailableDates(ranges);
+
+        if (
+            options?.checkSelectionConflict
+            && hadCompleteSelection
+            && form.start_date !== ''
+            && form.end_date !== ''
+            && isSelectedRangeBlocked(form.start_date, form.end_date)
+        ) {
+            liveConflictWarning.value = true;
+            clearDateSelection();
+        }
     } catch {
         unavailableDateSet.value = new Set();
         unavailableDatesError.value = 'Unable to load unavailable dates. You can still pick dates manually.';
     } finally {
         unavailableDatesLoading.value = false;
     }
+}
+
+async function syncHold(): Promise<void> {
+    if (!datesComplete.value) {
+        return;
+    }
+
+    holdHttp.start_date = form.start_date;
+    holdHttp.end_date = form.end_date;
+
+    try {
+        await holdHttp.submit(holdStore.post({ vehicle: props.vehicle.slug }));
+    } catch {
+        // Hold sync is best-effort; preview and live refetch reconcile availability.
+    }
+}
+
+function releaseHold(): void {
+    void fetch(holdDestroy.url({ vehicle: props.vehicle.slug }), {
+        method: 'DELETE',
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+    }).catch(() => {});
 }
 
 async function fetchPreview(): Promise<void> {
@@ -261,13 +341,14 @@ async function fetchPreview(): Promise<void> {
     }
 }
 
-function schedulePreview(): void {
+function scheduleDebouncedSync(): void {
     if (debounceTimer !== null) {
         clearTimeout(debounceTimer);
     }
 
     debounceTimer = setTimeout(() => {
         void fetchPreview();
+        void syncHold();
     }, DEBOUNCE_MS);
 }
 
@@ -278,13 +359,22 @@ watch(
             preview.value = null;
             previewError.value = null;
             previewRequestId++;
+            releaseHold();
 
             return;
         }
 
-        schedulePreview();
+        scheduleDebouncedSync();
     },
     { deep: true },
+);
+
+useEchoPublic(
+    `vehicle.${props.vehicle.id}.availability`,
+    'VehicleAvailabilityChanged',
+    () => {
+        void fetchUnavailableDates({ checkSelectionConflict: true });
+    },
 );
 
 onMounted(() => {
@@ -297,10 +387,15 @@ onUnmounted(() => {
     }
 
     previewRequestId++;
+    releaseHold();
 });
 
 function submit(): void {
-    form.post(bookStore.url({ vehicle: props.vehicle.slug }));
+    form.post(bookStore.url({ vehicle: props.vehicle.slug }), {
+        onSuccess: () => {
+            releaseHold();
+        },
+    });
 }
 </script>
 
@@ -529,7 +624,23 @@ function submit(): void {
                             </h2>
 
                             <div
-                                v-if="!datesComplete"
+                                v-if="liveConflictWarning"
+                                class="flex gap-3 rounded-lg border border-amber-300/80 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
+                                role="alert"
+                            >
+                                <AlertTriangle
+                                    class="mt-0.5 size-4 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <p>
+                                    This vehicle is not available for the
+                                    selected dates. Please choose different
+                                    dates.
+                                </p>
+                            </div>
+
+                            <div
+                                v-else-if="!datesComplete"
                                 class="text-sm text-muted-foreground"
                             >
                                 Select pick-up and return dates to see your
@@ -552,7 +663,7 @@ function submit(): void {
 
                             <template v-else-if="preview">
                                 <div
-                                    v-if="isUnavailable"
+                                    v-if="isPreviewUnavailable"
                                     class="flex gap-3 rounded-lg border border-amber-300/80 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
                                     role="alert"
                                 >

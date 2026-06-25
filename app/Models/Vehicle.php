@@ -42,6 +42,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property-read Category $category
  * @property-read Collection<int, Booking> $bookings
  * @property-read Collection<int, MaintenanceBlock> $maintenanceBlocks
+ * @property-read Collection<int, BookingHold> $bookingHolds
  */
 #[Fillable([
     'category_id',
@@ -197,6 +198,14 @@ class Vehicle extends Model implements HasMedia
     }
 
     /**
+     * @return HasMany<BookingHold, $this>
+     */
+    public function bookingHolds(): HasMany
+    {
+        return $this->hasMany(BookingHold::class);
+    }
+
+    /**
      * Whether the vehicle can be booked for the given date range.
      *
      * Date convention: start inclusive, end exclusive (return day).
@@ -205,13 +214,13 @@ class Vehicle extends Model implements HasMedia
      * overlap = !(candidate.end + buffer <= existing.start)
      *        && !(existing.end + buffer <= candidate.start)
      */
-    public function isAvailableBetween(Carbon $start, Carbon $end): bool
+    public function isAvailableBetween(Carbon $start, Carbon $end, ?int $excludeUserId = null): bool
     {
         if ($this->status !== VehicleStatus::Available) {
             return false;
         }
 
-        return $this->blockedDateRanges($start, $end) === [];
+        return $this->blockedDateRanges($start, $end, $excludeUserId) === [];
     }
 
     /**
@@ -221,7 +230,7 @@ class Vehicle extends Model implements HasMedia
      *
      * @return list<array{start: Carbon, end: Carbon}>
      */
-    public function blockedDateRanges(Carbon $from, Carbon $to): array
+    public function blockedDateRanges(Carbon $from, Carbon $to, ?int $excludeUserId = null): array
     {
         $this->loadMissing('category');
 
@@ -244,9 +253,19 @@ class Vehicle extends Model implements HasMedia
                 $block->end_date,
             ));
 
+        $holdRanges = $this->bookingHolds()
+            ->where('expires_at', '>', now())
+            ->when($excludeUserId !== null, fn ($query) => $query->where('user_id', '!=', $excludeUserId))
+            ->get(['start_date', 'end_date'])
+            ->map(fn (BookingHold $hold): array => self::toRange(
+                $hold->start_date,
+                $hold->end_date,
+            ));
+
         /** @var list<array{start: Carbon, end: Carbon}> $ranges */
         $ranges = array_values($bookingRanges
             ->concat($maintenanceRanges)
+            ->concat($holdRanges)
             ->filter(fn (array $range): bool => self::rangesOverlapWithBuffer(
                 $windowStart,
                 $windowEnd,
