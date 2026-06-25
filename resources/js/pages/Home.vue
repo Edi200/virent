@@ -125,7 +125,7 @@ function vehicleShowHref(vehicleSlug: string): string {
         <div class="space-y-8">
             <header class="border-b border-border/60 pb-6">
                 <p class="max-w-2xl text-sm text-muted-foreground md:text-base">
-                    Cars, vans, and work machinery — browse what's available
+                    Cars, vans, motorcycles and work machinery — browse what's available
                     and find the right vehicle for your job.
                 </p>
             </header>

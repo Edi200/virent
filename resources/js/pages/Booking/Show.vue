@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { CheckCircle2, Clock, XCircle } from '@lucide/vue';
+import { CheckCircle2, Clock, FileDown, XCircle } from '@lucide/vue';
 import { computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useBookingDisplay } from '@/composables/useBookingDisplay';
-import { index as bookingsIndex } from '@/routes/bookings';
+import { contract, index as bookingsIndex } from '@/routes/bookings';
 import { show as fleetShow } from '@/routes/fleet';
 
 type BreakdownLine = {
@@ -15,6 +15,7 @@ type BreakdownLine = {
 };
 
 type BookingConfirmation = {
+    id: number;
     reference: string;
     status: string;
     start_date: string;
@@ -106,6 +107,14 @@ const showDepositNote = computed(
 
 const showNextSteps = computed(
     () => props.booking.status !== 'completed',
+);
+
+const showContractDownload = computed(() =>
+    ['confirmed', 'active', 'completed'].includes(props.booking.status),
+);
+
+const contractDownloadUrl = computed(() =>
+    contract.url({ booking: props.booking.id }),
 );
 </script>
 
@@ -237,7 +246,18 @@ const showNextSteps = computed(
                     <p>{{ nextStepsCopy }}</p>
                 </div>
 
-                <div class="flex flex-col gap-3 sm:flex-row">
+                <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <Button
+                        v-if="showContractDownload"
+                        variant="outline"
+                        class="w-full gap-2 sm:w-auto"
+                        as-child
+                    >
+                        <a :href="contractDownloadUrl" download>
+                            <FileDown class="size-4" aria-hidden="true" />
+                            Download rental agreement
+                        </a>
+                    </Button>
                     <Button class="w-full sm:w-auto" as-child>
                         <Link :href="bookingsIndex()">
                             View all bookings

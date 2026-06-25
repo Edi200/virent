@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BookingStatus;
 use App\Enums\VehicleStatus;
 use App\Events\VehicleAvailabilityChanged;
 use App\Exceptions\VehicleUnavailableException;
@@ -10,6 +11,7 @@ use App\Models\Booking;
 use App\Models\BookingHold;
 use App\Models\Extra;
 use App\Models\Vehicle;
+use App\Services\BookingContractService;
 use App\Services\BookingService;
 use App\Services\PricingService;
 use Illuminate\Http\JsonResponse;
@@ -234,6 +236,7 @@ class BookingController extends Controller
 
         return Inertia::render('Booking/Show', [
             'booking' => [
+                'id' => $booking->id,
                 'reference' => $booking->reference(),
                 'status' => $booking->status->value,
                 'start_date' => $booking->start_date->format('Y-m-d'),
@@ -252,6 +255,31 @@ class BookingController extends Controller
                 ],
             ],
         ]);
+    }
+
+    public function contract(Booking $booking, BookingContractService $contracts): HttpResponse
+    {
+        $booking->load('customer');
+
+        abort_unless($booking->customer->user_id === auth()->id(), 403);
+        abort_if(
+            $booking->status === BookingStatus::Pending,
+            403,
+            __('The rental agreement will be available once your booking is confirmed.'),
+        );
+        abort_if(
+            $booking->status === BookingStatus::Cancelled,
+            403,
+            __('Rental agreement is not available for cancelled bookings.'),
+        );
+        abort_unless(
+            in_array($booking->status, [BookingStatus::Confirmed, BookingStatus::Active, BookingStatus::Completed], true),
+            403,
+        );
+
+        $pdf = $contracts->generate($booking);
+
+        return $pdf->download($contracts->filename($booking));
     }
 
     private function ensureVehicleAvailable(Vehicle $vehicle): void

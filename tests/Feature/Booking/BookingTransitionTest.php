@@ -4,9 +4,11 @@ use App\Enums\BookingStatus;
 use App\Exceptions\InvalidBookingTransitionException;
 use App\Mail\BookingCancelledMailable;
 use App\Mail\BookingConfirmedMailable;
+use App\Mail\BookingCreatedMailable;
 use App\Models\Booking;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Services\BookingContractService;
 use App\Services\BookingService;
 use Illuminate\Support\Facades\Mail;
 
@@ -147,12 +149,20 @@ describe('BookingService::transitionTo', function () {
 
         $booking = transitionBooking(BookingStatus::Pending);
         $user = $booking->customer->user;
+        $expectedFilename = app(BookingContractService::class)->filename($booking);
 
         $this->bookingService->transitionTo($booking, BookingStatus::Confirmed);
 
-        Mail::assertSent(BookingConfirmedMailable::class, function (BookingConfirmedMailable $mail) use ($user, $booking): bool {
-            return $mail->hasTo($user->email)
-                && $mail->booking->is($booking->fresh());
+        Mail::assertSent(BookingConfirmedMailable::class, function (BookingConfirmedMailable $mail) use ($user, $booking, $expectedFilename): bool {
+            if (! $mail->hasTo($user->email) || ! $mail->booking->is($booking->fresh())) {
+                return false;
+            }
+
+            $attachments = $mail->attachments();
+
+            return count($attachments) === 1
+                && $attachments[0]->as === $expectedFilename
+                && $attachments[0]->mime === 'application/pdf';
         });
 
         Mail::assertNotSent(BookingCancelledMailable::class);
@@ -168,10 +178,27 @@ describe('BookingService::transitionTo', function () {
 
         Mail::assertSent(BookingCancelledMailable::class, function (BookingCancelledMailable $mail) use ($user, $booking): bool {
             return $mail->hasTo($user->email)
-                && $mail->booking->is($booking->fresh());
+                && $mail->booking->is($booking->fresh())
+                && $mail->attachments === [];
         });
 
         Mail::assertNotSent(BookingConfirmedMailable::class);
+    });
+
+    it('does not attach a PDF to BookingCreatedMailable', function () {
+        $booking = transitionBooking(BookingStatus::Pending);
+        $mailable = new BookingCreatedMailable($booking);
+
+        expect(method_exists($mailable, 'attachments'))->toBeFalse()
+            ->and($mailable->attachments)->toBe([]);
+    });
+
+    it('does not attach a PDF to BookingCancelledMailable', function () {
+        $booking = transitionBooking(BookingStatus::Pending);
+        $mailable = new BookingCancelledMailable($booking);
+
+        expect(method_exists($mailable, 'attachments'))->toBeFalse()
+            ->and($mailable->attachments)->toBe([]);
     });
 
     it('sends no email when transitioning to active', function () {

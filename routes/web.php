@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/fleet/{vehicle:slug}/hold', [BookingController::class, 'destroyHold'])->name('fleet.hold.destroy');
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
     Route::get('/bookings/{booking}', [BookingController::class, 'show'])->name('bookings.show');
+    Route::get('/bookings/{booking}/contract', [BookingController::class, 'contract'])->name('bookings.contract');
 });
 
 require __DIR__.'/settings.php';
