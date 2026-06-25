@@ -87,6 +87,31 @@ class BookingController extends Controller
         ]);
     }
 
+    public function unavailableDates(Vehicle $vehicle): JsonResponse
+    {
+        $this->ensureVehicleAvailable($vehicle);
+
+        $windowStart = Carbon::today()->startOfDay();
+        $windowEnd = $windowStart->copy()->addMonthsNoOverflow(12)->addDay();
+
+        $blockedRanges = collect($vehicle->blockedDateRanges($windowStart, $windowEnd))
+            ->map(function (array $range) use ($windowStart, $windowEnd): array {
+                $clampedStart = Carbon::parse($range['start'])->max($windowStart);
+                $clampedEndExclusive = Carbon::parse($range['end'])->min($windowEnd);
+                $clampedEndInclusive = $clampedEndExclusive->copy()->subSecond();
+
+                return [
+                    'start_date' => $clampedStart->toDateString(),
+                    'end_date' => $clampedEndInclusive->toDateString(),
+                ];
+            })
+            ->filter(fn (array $range): bool => $range['start_date'] <= $range['end_date'])
+            ->values()
+            ->all();
+
+        return response()->json($blockedRanges);
+    }
+
     public function pricePreview(Request $request, Vehicle $vehicle): JsonResponse
     {
         $this->ensureVehicleAvailable($vehicle);

@@ -11,6 +11,8 @@ Route::get('/fleet', function () {
 })->name('fleet.index');
 
 Route::get('/fleet/{vehicle:slug}', [FleetController::class, 'show'])->name('fleet.show');
+Route::get('/fleet/{vehicle:slug}/unavailable-dates', [BookingController::class, 'unavailableDates'])
+    ->name('fleet.unavailable-dates');
 
 Route::middleware('auth')->group(function () {
     Route::get('/fleet/{vehicle:slug}/book', [BookingController::class, 'create'])->name('fleet.book');

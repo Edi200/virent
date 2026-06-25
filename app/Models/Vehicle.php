@@ -211,39 +211,57 @@ class Vehicle extends Model implements HasMedia
             return false;
         }
 
+        return $this->blockedDateRanges($start, $end) === [];
+    }
+
+    /**
+     * Returns buffered blocked ranges that overlap the requested window.
+     *
+     * Range convention: start inclusive, end exclusive.
+     *
+     * @return list<array{start: Carbon, end: Carbon}>
+     */
+    public function blockedDateRanges(Carbon $from, Carbon $to): array
+    {
         $this->loadMissing('category');
-        $bufferHours = $this->category->buffer_hours;
 
-        $blockingStatuses = [
-            BookingStatus::Pending->value,
-            BookingStatus::Confirmed->value,
-            BookingStatus::Active->value,
-        ];
+        $windowStart = $from->copy()->startOfDay();
+        $windowEnd = $to->copy()->startOfDay();
+        $bufferHours = (int) $this->category->buffer_hours;
 
-        $hasBookingConflict = $this->bookings()
-            ->whereIn('status', $blockingStatuses)
-            ->get()
-            ->contains(fn (Booking $booking): bool => self::rangesOverlapWithBuffer(
-                $start,
-                $end,
+        $bookingRanges = $this->bookings()
+            ->whereIn('status', self::blockingStatuses())
+            ->get(['start_date', 'end_date'])
+            ->map(fn (Booking $booking): array => self::toRange(
                 $booking->start_date,
                 $booking->end_date,
-                $bufferHours,
             ));
 
-        if ($hasBookingConflict) {
-            return false;
-        }
-
-        return ! $this->maintenanceBlocks()
-            ->get()
-            ->contains(fn (MaintenanceBlock $block): bool => self::rangesOverlapWithBuffer(
-                $start,
-                $end,
+        $maintenanceRanges = $this->maintenanceBlocks()
+            ->get(['start_date', 'end_date'])
+            ->map(fn (MaintenanceBlock $block): array => self::toRange(
                 $block->start_date,
                 $block->end_date,
-                $bufferHours,
             ));
+
+        /** @var list<array{start: Carbon, end: Carbon}> $ranges */
+        $ranges = array_values($bookingRanges
+            ->concat($maintenanceRanges)
+            ->filter(fn (array $range): bool => self::rangesOverlapWithBuffer(
+                $windowStart,
+                $windowEnd,
+                $range['start'],
+                $range['end'],
+                $bufferHours,
+            ))
+            ->map(fn (array $range): array => self::toBufferedRange(
+                $range['start'],
+                $range['end'],
+                $bufferHours,
+            ))
+            ->all());
+
+        return $ranges;
     }
 
     public static function rangesOverlapWithBuffer(
@@ -263,5 +281,49 @@ class Vehicle extends Model implements HasMedia
 
         return ! ($candidateEndWithBuffer <= $existingStart)
             && ! ($existingEndWithBuffer <= $candidateStart);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function blockingStatuses(): array
+    {
+        return [
+            BookingStatus::Pending->value,
+            BookingStatus::Confirmed->value,
+            BookingStatus::Active->value,
+        ];
+    }
+
+    /**
+     * @return array{start: Carbon, end: Carbon}
+     */
+    private static function toBufferedRange(
+        CarbonInterface $start,
+        CarbonInterface $end,
+        int $bufferHours,
+    ): array {
+        $range = self::toRange($start, $end);
+
+        return [
+            'start' => $range['start'],
+            'end' => $range['end']->copy()->addHours($bufferHours),
+        ];
+    }
+
+    /**
+     * @return array{start: Carbon, end: Carbon}
+     */
+    private static function toRange(
+        CarbonInterface $start,
+        CarbonInterface $end,
+    ): array {
+        $normalizedStart = Carbon::parse($start)->startOfDay();
+        $normalizedEnd = Carbon::parse($end)->startOfDay();
+
+        return [
+            'start' => $normalizedStart,
+            'end' => $normalizedEnd,
+        ];
     }
 }
