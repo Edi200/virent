@@ -28,8 +28,10 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->colors([
-                'primary' => Color::hex('#5E244E'),
+                'primary' => Color::hex('#178C69'),
             ])
+            ->brandLogo(fn () => view('filament.admin.brand-logo'))
+            ->brandLogoHeight('1.75rem')
             ->navigationGroups([
                 'Fleet',
                 'Customers',
