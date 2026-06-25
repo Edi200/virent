@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm, useHttp } from '@inertiajs/vue3';
-import { useEchoPublic } from '@laravel/echo-vue';
+import { echo } from '@laravel/echo-vue';
 import { AlertTriangle, ArrowLeft } from '@lucide/vue';
 import type { DateValue } from '@internationalized/date';
 import type { DateRange, RangeCalendarRootProps } from 'reka-ui';
@@ -289,14 +289,30 @@ async function syncHold(): Promise<void> {
     }
 }
 
+function readXsrfToken(): string {
+    if (typeof document === 'undefined') {
+        return '';
+    }
+
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
 function releaseHold(): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
     void fetch(holdDestroy.url({ vehicle: props.vehicle.slug }), {
         method: 'DELETE',
         headers: {
             Accept: 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
+            'X-XSRF-TOKEN': readXsrfToken(),
         },
         credentials: 'same-origin',
+        keepalive: true,
     }).catch(() => {});
 }
 
@@ -369,16 +385,18 @@ watch(
     { deep: true },
 );
 
-useEchoPublic(
-    `vehicle.${props.vehicle.id}.availability`,
-    'VehicleAvailabilityChanged',
-    () => {
-        void fetchUnavailableDates({ checkSelectionConflict: true });
-    },
-);
+const availabilityChannel = `vehicle.${props.vehicle.id}.availability`;
+
+function handleAvailabilityChanged(): void {
+    void fetchUnavailableDates({ checkSelectionConflict: true });
+}
 
 onMounted(() => {
     void fetchUnavailableDates();
+
+    echo()
+        .channel(availabilityChannel)
+        .listen('.VehicleAvailabilityChanged', handleAvailabilityChanged);
 });
 
 onUnmounted(() => {
@@ -387,6 +405,7 @@ onUnmounted(() => {
     }
 
     previewRequestId++;
+    echo().leave(availabilityChannel);
     releaseHold();
 });
 

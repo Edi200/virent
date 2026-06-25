@@ -91,14 +91,15 @@ class BookingController extends Controller
         ]);
     }
 
-    public function unavailableDates(Vehicle $vehicle): JsonResponse
+    public function unavailableDates(Request $request, Vehicle $vehicle): JsonResponse
     {
         $this->ensureVehicleAvailable($vehicle);
 
         $windowStart = Carbon::today()->startOfDay();
         $windowEnd = $windowStart->copy()->addMonthsNoOverflow(12)->addDay();
+        $excludeUserId = optional($request->user())->id;
 
-        $blockedRanges = collect($vehicle->blockedDateRanges($windowStart, $windowEnd))
+        $blockedRanges = collect($vehicle->blockedDateRanges($windowStart, $windowEnd, $excludeUserId))
             ->map(function (array $range) use ($windowStart, $windowEnd): array {
                 $clampedStart = Carbon::parse($range['start'])->max($windowStart);
                 $clampedEndExclusive = Carbon::parse($range['end'])->min($windowEnd);
@@ -133,7 +134,7 @@ class BookingController extends Controller
 
         return response()->json([
             ...$pricing,
-            'available' => $vehicle->isAvailableBetween($start, $end),
+            'available' => $vehicle->isAvailableBetween($start, $end, $request->user()->id),
         ]);
     }
 

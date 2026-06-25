@@ -3,6 +3,7 @@
 use App\Enums\BookingStatus;
 use App\Mail\BookingCreatedMailable;
 use App\Models\Booking;
+use App\Models\BookingHold;
 use App\Models\Category;
 use App\Models\Extra;
 use App\Models\MaintenanceBlock;
@@ -98,6 +99,28 @@ it('returns a price preview with breakdown and availability flag', function () {
         ]);
 });
 
+it('excludes the authenticated viewers own active hold from price preview availability', function () {
+    $user = flowCustomer();
+    $vehicle = flowVehicle();
+    $dates = flowDates();
+
+    BookingHold::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'start_date' => $dates['start_date'],
+        'end_date' => $dates['end_date'],
+    ]);
+
+    $this->actingAs($user)
+        ->postJson(route('fleet.price-preview', $vehicle), [
+            ...$dates,
+            'with_operator' => false,
+            'extras' => [],
+        ])
+        ->assertSuccessful()
+        ->assertJson(['available' => true]);
+});
+
 it('returns available false in price preview when dates conflict', function () {
     $user = flowCustomer();
     $vehicle = flowVehicle();
@@ -166,6 +189,68 @@ it('returns public unavailable date ranges with exact shape', function () {
         'start_date' => $start->copy()->addDays(9)->toDateString(),
         'end_date' => $start->copy()->addDays(10)->toDateString(),
     ]);
+});
+
+it('excludes the authenticated viewers own active hold from unavailable dates', function () {
+    $vehicle = flowVehicle();
+    $user = flowCustomer();
+    $dates = flowDates();
+
+    BookingHold::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $user->id,
+        'start_date' => $dates['start_date'],
+        'end_date' => $dates['end_date'],
+    ]);
+
+    $this->actingAs($user)
+        ->getJson(route('fleet.unavailable-dates', $vehicle))
+        ->assertSuccessful()
+        ->assertJson([]);
+});
+
+it('includes another users active hold in unavailable dates for authenticated viewers', function () {
+    $vehicle = flowVehicle();
+    $holdOwner = flowCustomer();
+    $viewer = flowCustomer();
+    $dates = flowDates();
+    $expectedEndInclusive = Carbon::parse($dates['end_date'])->subDay()->toDateString();
+
+    BookingHold::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $holdOwner->id,
+        'start_date' => $dates['start_date'],
+        'end_date' => $dates['end_date'],
+    ]);
+
+    $this->actingAs($viewer)
+        ->getJson(route('fleet.unavailable-dates', $vehicle))
+        ->assertSuccessful()
+        ->assertJson([[
+            'start_date' => $dates['start_date'],
+            'end_date' => $expectedEndInclusive,
+        ]]);
+});
+
+it('includes active holds from other users for guest unavailable date requests', function () {
+    $vehicle = flowVehicle();
+    $holdOwner = flowCustomer();
+    $dates = flowDates();
+    $expectedEndInclusive = Carbon::parse($dates['end_date'])->subDay()->toDateString();
+
+    BookingHold::factory()->active()->create([
+        'vehicle_id' => $vehicle->id,
+        'user_id' => $holdOwner->id,
+        'start_date' => $dates['start_date'],
+        'end_date' => $dates['end_date'],
+    ]);
+
+    $this->getJson(route('fleet.unavailable-dates', $vehicle))
+        ->assertSuccessful()
+        ->assertJson([[
+            'start_date' => $dates['start_date'],
+            'end_date' => $expectedEndInclusive,
+        ]]);
 });
 
 it('creates a pending booking, sends email, and redirects to confirmation', function () {
