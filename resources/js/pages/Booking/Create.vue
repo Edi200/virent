@@ -10,7 +10,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
+import { useBookingDisplay } from '@/composables/useBookingDisplay';
 import { RangeCalendar } from '@/components/ui/range-calendar';
 import { store as bookStore } from '@/routes/fleet/book';
 import { destroy as holdDestroy, store as holdStore } from '@/routes/fleet/hold';
@@ -86,6 +96,7 @@ const holdHttp = useHttp({
 const preview = ref<PricePreviewResult | null>(null);
 const previewLoading = ref(false);
 const previewError = ref<string | null>(null);
+const confirmModalOpen = ref(false);
 const liveConflictWarning = ref(false);
 const unavailableDatesLoading = ref(false);
 const unavailableDatesError = ref<string | null>(null);
@@ -101,6 +112,8 @@ const datesError = computed(
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let previewRequestId = 0;
+
+const { formatDate } = useBookingDisplay();
 
 const eurFormatter = new Intl.NumberFormat('en-EU', {
     style: 'currency',
@@ -132,14 +145,17 @@ const isPreviewUnavailable = computed(
     () => preview.value !== null && preview.value.available === false,
 );
 
-const canSubmit = computed(
+const canOpenConfirmModal = computed(
     () =>
         datesComplete.value
         && !previewLoading.value
         && preview.value !== null
         && preview.value.available
-        && !liveConflictWarning.value
-        && !form.processing,
+        && !liveConflictWarning.value,
+);
+
+const selectedExtras = computed(() =>
+    props.extras.filter((extra) => form.extras.includes(extra.id)),
 );
 
 function isExtraSelected(extraId: number): boolean {
@@ -408,6 +424,14 @@ onUnmounted(() => {
     echo().leave(availabilityChannel);
     releaseHold();
 });
+
+function handleConfirmModalOpenChange(open: boolean): void {
+    if (form.processing) {
+        return;
+    }
+
+    confirmModalOpen.value = open;
+}
 
 function submit(): void {
     form.post(bookStore.url({ vehicle: props.vehicle.slug }), {
@@ -733,14 +757,10 @@ function submit(): void {
                                 variant="default"
                                 size="lg"
                                 class="w-full"
-                                :disabled="!canSubmit"
-                                @click="submit"
+                                :disabled="!canOpenConfirmModal"
+                                @click="confirmModalOpen = true"
                             >
-                                {{
-                                    form.processing
-                                        ? 'Submitting…'
-                                        : 'Request booking'
-                                }}
+                                Request booking
                             </Button>
 
                             <p class="text-xs text-muted-foreground">
@@ -753,4 +773,141 @@ function submit(): void {
             </div>
         </div>
     </main>
+
+    <Dialog
+        :open="confirmModalOpen"
+        @update:open="handleConfirmModalOpenChange"
+    >
+        <DialogContent
+            class="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+            :show-close-button="!form.processing"
+        >
+            <DialogHeader class="space-y-3">
+                <DialogTitle class="font-heading text-xl">
+                    Confirm booking request
+                </DialogTitle>
+                <DialogDescription>
+                    Review your rental details before submitting. No payment is
+                    taken now — we will contact you to confirm availability.
+                </DialogDescription>
+            </DialogHeader>
+
+            <div v-if="preview" class="space-y-5 text-sm">
+                <div class="space-y-1">
+                    <p class="font-heading text-base font-semibold text-foreground">
+                        {{ vehicle.name }}
+                    </p>
+                    <p class="text-muted-foreground">
+                        {{ vehicle.category.name }}
+                    </p>
+                </div>
+
+                <dl class="grid gap-4 sm:grid-cols-2">
+                    <div class="space-y-1">
+                        <dt class="text-muted-foreground">Pick-up date</dt>
+                        <dd class="font-medium text-foreground">
+                            {{ formatDate(form.start_date) }}
+                        </dd>
+                    </div>
+                    <div class="space-y-1">
+                        <dt class="text-muted-foreground">
+                            Return date
+                        </dt>
+                        <dd class="font-medium text-foreground">
+                            {{ formatDate(form.end_date) }}
+                        </dd>
+                        <dd class="text-xs text-muted-foreground">
+                            Vehicle must be returned by end of this date
+                            (exclusive-end — not charged).
+                        </dd>
+                    </div>
+                </dl>
+
+                <div
+                    v-if="form.with_operator"
+                    class="space-y-1 border-t border-border pt-4"
+                >
+                    <p class="font-medium text-foreground">Operator</p>
+                    <p class="text-muted-foreground">Included</p>
+                </div>
+
+                <div
+                    v-if="selectedExtras.length > 0"
+                    class="space-y-2 border-t border-border pt-4"
+                >
+                    <p class="font-medium text-foreground">Extras</p>
+                    <ul class="space-y-2">
+                        <li
+                            v-for="extra in selectedExtras"
+                            :key="extra.id"
+                            class="flex items-baseline justify-between gap-3"
+                        >
+                            <span class="text-muted-foreground">
+                                {{ extra.name }}
+                            </span>
+                            <span class="font-medium text-foreground">
+                                {{ formatExtraPrice(extra) }}
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="space-y-3 border-t border-border pt-4">
+                    <p class="font-medium text-foreground">Price breakdown</p>
+                    <ul class="space-y-2">
+                        <li
+                            v-for="(line, index) in preview.breakdown"
+                            :key="`${line.label}-${index}`"
+                            class="flex items-baseline justify-between gap-3"
+                        >
+                            <span class="text-muted-foreground">
+                                {{ line.label }}
+                            </span>
+                            <span class="font-medium text-foreground">
+                                {{ formatEur(line.amount) }}
+                            </span>
+                        </li>
+                    </ul>
+                    <div
+                        class="flex items-baseline justify-between gap-3 border-t border-border pt-3"
+                    >
+                        <span
+                            class="font-heading text-base font-semibold text-foreground"
+                        >
+                            Total
+                        </span>
+                        <span
+                            class="font-heading text-lg font-semibold text-foreground"
+                        >
+                            {{ formatEur(preview.total_price) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <DialogFooter class="gap-2">
+                <Button
+                    type="button"
+                    variant="secondary"
+                    :disabled="form.processing"
+                    @click="confirmModalOpen = false"
+                >
+                    Cancel
+                </Button>
+                <Button
+                    type="button"
+                    class="gap-2"
+                    :disabled="form.processing"
+                    @click="submit"
+                >
+                    <Spinner v-if="form.processing" />
+                    {{
+                        form.processing
+                            ? 'Submitting…'
+                            : 'Confirm request'
+                    }}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>
