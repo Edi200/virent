@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, useForm, useHttp } from '@inertiajs/vue3';
 import { AlertTriangle, ArrowLeft } from '@lucide/vue';
-import type { DateRange, DateValue } from 'reka-ui';
+import type { DateValue } from '@internationalized/date';
+import type { DateRange, RangeCalendarRootProps } from 'reka-ui';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { getLocalTimeZone, parseDate, today as dateToday } from '@internationalized/date';
+import { getLocalTimeZone, today as dateToday } from '@internationalized/date';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -80,7 +81,14 @@ const previewError = ref<string | null>(null);
 const unavailableDatesLoading = ref(false);
 const unavailableDatesError = ref<string | null>(null);
 const unavailableDateSet = ref<Set<string>>(new Set());
-const selectedRange = ref<DateRange | undefined>(undefined);
+type SelectedRange = RangeCalendarRootProps['modelValue'];
+const selectedRange = ref<SelectedRange>(undefined);
+const selectedRangeForCalendar = computed(
+    () => selectedRange.value as DateRange | null | undefined,
+);
+const datesError = computed(
+    () => (form.errors as Record<string, string | undefined>).dates,
+);
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let previewRequestId = 0;
@@ -144,10 +152,6 @@ function dateValueToIso(value: DateValue): string {
     return value.toString();
 }
 
-function parseIsoToDateValue(value: string): DateValue {
-    return parseDate(value);
-}
-
 function expandUnavailableDates(ranges: UnavailableRange[]): Set<string> {
     const expanded = new Set<string>();
 
@@ -174,20 +178,7 @@ function isDateUnavailable(date: DateValue): boolean {
     return unavailableDateSet.value.has(dateValueToIso(date));
 }
 
-function syncRangeFromForm(): void {
-    if (form.start_date === '' || form.end_date === '') {
-        selectedRange.value = undefined;
-
-        return;
-    }
-
-    selectedRange.value = {
-        start: parseIsoToDateValue(form.start_date),
-        end: parseIsoToDateValue(form.end_date),
-    };
-}
-
-function syncFormFromRange(range: DateRange | undefined): void {
+function syncFormFromRange(range: SelectedRange): void {
     if (range?.start === undefined || range.end === undefined) {
         form.start_date = '';
         form.end_date = '';
@@ -197,6 +188,11 @@ function syncFormFromRange(range: DateRange | undefined): void {
 
     form.start_date = dateValueToIso(range.start);
     form.end_date = dateValueToIso(range.end);
+}
+
+function handleRangeUpdate(range: SelectedRange): void {
+    selectedRange.value = range;
+    syncFormFromRange(range);
 }
 
 async function fetchUnavailableDates(): Promise<void> {
@@ -291,12 +287,7 @@ watch(
     { deep: true },
 );
 
-watch(selectedRange, (range) => {
-    syncFormFromRange(range);
-});
-
 onMounted(() => {
-    syncRangeFromForm();
     void fetchUnavailableDates();
 });
 
@@ -373,7 +364,8 @@ function submit(): void {
                             <div class="space-y-3">
                                 <Label>Pick-up and return dates</Label>
                                 <RangeCalendar
-                                    v-model="selectedRange"
+                                    :model-value="selectedRangeForCalendar"
+                                    @update:model-value="handleRangeUpdate"
                                     :number-of-months="2"
                                     :min-value="minBookingDate"
                                     :is-date-unavailable="isDateUnavailable"
@@ -426,10 +418,10 @@ function submit(): void {
                             </div>
 
                             <p
-                                v-if="form.errors.dates"
+                                v-if="datesError"
                                 class="text-sm text-destructive"
                             >
-                                {{ form.errors.dates }}
+                                {{ datesError }}
                             </p>
 
                             <div

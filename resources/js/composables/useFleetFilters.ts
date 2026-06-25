@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import { home } from '@/routes';
+import type { QueryParams } from '@/wayfinder';
 
 export type FleetAttrValue =
     | string
@@ -70,8 +71,8 @@ function cleanAttrs(
     return result;
 }
 
-function buildQueryFromFilters(input: FleetFilters): Record<string, unknown> {
-    const query: Record<string, unknown> = {};
+function buildQueryFromFilters(input: FleetFilters): QueryParams {
+    const query: QueryParams = {};
 
     if (input.group) {
         query.group = input.group;
@@ -162,7 +163,7 @@ export function useFleetFilters(
         { deep: true },
     );
 
-    function navigate(query: Record<string, unknown>): void {
+    function navigate(query: QueryParams): void {
         router.get(
             home.url(Object.keys(query).length > 0 ? { query } : undefined),
             {},
@@ -373,7 +374,7 @@ export function useFleetFilters(
     function isBooleanAttrChecked(key: string): boolean {
         const value = getFilters().attrs[key];
 
-        return value === true || value === '1' || value === 1;
+        return value === true || value === '1';
     }
 
     function getSelectAttrValue(key: string): string | undefined {
